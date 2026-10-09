@@ -1,383 +1,380 @@
-# shiftbench
+# Generalised Likelihood Ratio Tests for Distribution Shift
 
-A unified evaluation harness for two-sample tests under distribution shift.
-
-Course project, *Statistical Detection and Estimation Theory*. Faculty mentor:
-Prof. Praful.
+Course project, *Statistical Detection and Estimation Theory*.
+Faculty mentor: Prof. Praful.
 
 ---
 
-## 1. Purpose
+## 1. Objective
 
-The project compares classical, model-based two-sample tests against modern
-non-parametric and classifier-based tests, and identifies where each one fails.
-Four workstreams are implementing different tests (Kolmogorov–Smirnov; z- and
-t-tests; multiple-testing corrections; the generalised likelihood ratio test).
-Results from those workstreams are only comparable if they are measured on
-identical data, calibrated identically, and reported on identical axes.
+A model trained on one distribution eventually sees data drawn from another.
+Deciding whether drift has occurred is a two-sample hypothesis test: given a
+reference sample and a new sample, determine whether they arise from the same
+distribution.
 
-This package provides that common substrate. It contributes three things:
+Standard practice reaches for non-parametric tests — maximum mean discrepancy,
+classifier two-sample tests — because the true distribution is unknown. That
+generality is not free: it costs statistical power, and it scales poorly in
+dimension and sample size. Real data frequently follows an approximately known
+structure, and a parametric test built on that structure can detect shift from
+substantially fewer samples.
 
-1. **A reproducible benchmark.** Deterministic dataset splits and a faithful
-   reimplementation of the synthetic shift catalogue of Rabanser, Günnemann and
-   Lipton, *Failing Loudly* (NeurIPS 2019), with parameters taken from the
-   authors' reference implementation rather than from the paper's prose — the
-   two disagree, and Section 5 records how.
-2. **A calibration-first protocol.** Every test is verified to hold its nominal
-   false-alarm rate before any power number is reported. A test that rejects
-   18 % of the time under the null will look powerful on every alternative;
-   comparing it to a correctly calibrated test is not a comparison of power.
-3. **A probe suite with known ground truth.** Seven synthetic distribution
-   pairs, each breaking exactly one modelling assumption while holding
-   everything else fixed, so that a test's failure can be attributed to a named
-   assumption rather than described as poor performance.
+This work implements the **generalised likelihood ratio test** as the general
+recipe for constructing such parametric tests, and quantifies when the
+assumption pays for itself. Non-parametric methods are retained as baselines,
+not as the subject of study.
 
 ---
 
-## 2. Installation
+## 2. The generalised likelihood ratio test
+
+For a parametric family `{f(·; θ) : θ ∈ Θ}` and a null restriction `Θ₀ ⊂ Θ`,
+
+$$\Lambda = \frac{\sup_{\theta \in \Theta_0} L(\theta; Z)}{\sup_{\theta \in \Theta} L(\theta; Z)}, \qquad G = -2\log\Lambda.$$
+
+In the two-sample problem the null asserts that both samples share one
+parameter and the alternative allows each its own, giving
+
+$$G = 2\left[\ell(\hat\theta_X; X) + \ell(\hat\theta_Y; Y) - \ell(\hat\theta_0; X \cup Y)\right].$$
+
+Wilks' theorem gives `G → χ²_r` under `H₀`, where `r` is the difference in free
+parameter count between the two models — **provided the regularity conditions
+hold**. Section 5 reports what happens when they do not.
+
+### 2.1 The five model cases
+
+| Case | Model | Free parameters under `H₁` | Wilks `r` | Defined for `d ≥ n`? |
+| --- | --- | --- | --- | --- |
+| **A** | `N(μ, Σ)`, `Σ` known | `μ` per sample | `d` | yes |
+| **B** | `N(μ, Σ)`, `Σ` unknown but common | `μ` per sample | `d` | **no** |
+| **C** | `N(μ, diag(σ²))` | `μ, σ²` per sample | `2d` | yes |
+| **D** | `N(μ, Σ)`, both free | `μ, Σ` per sample | `d + d(d+1)/2` | no |
+| **E** | Gaussian mixture, `k` components | all mixture parameters | **not valid** | no |
+
+Each case is a different answer to "what do we assume the data looks like".
+Moving down the table weakens the assumption and increases the number of
+parameters that must be estimated — which is precisely the trade the project
+measures.
+
+### 2.2 Two facts that drive the results
+
+**Case B is Hotelling's `T²`.** The likelihood ratio for a mean shift under a
+common unknown covariance satisfies
+
+$$\Lambda^{2/(n+m)} = \left(1 + \frac{T^2}{n+m-2}\right)^{-1},$$
+
+so `G = (n+m)·log(1 + T²/(n+m−2))` is a strictly increasing function of `T²`.
+**The GLRT and Hotelling's test are the same test** — identical rejection
+regions, identical power. They differ only in which reference distribution sets
+the threshold: Wilks gives the asymptotic `χ²_d`, while Hotelling's exact result
+
+$$\frac{n+m-d-1}{d\,(n+m-2)}\,T^2 \sim F_{d,\;n+m-d-1}$$
+
+holds for every `n` under normality. Where both exist, the exact `F` should be
+preferred. The registry exposes all three calibrations of this one statistic
+(`glrt_b_mean`, `glrt_b_mean_asym`, `glrt_b_mean_exactf`) so the claim is
+measured rather than asserted.
+
+**Case E has no valid asymptotic null.** Under `H₀` the alternative's extra
+mixture components are unidentifiable and the null parameter lies on the
+boundary of the alternative's parameter space. Wilks' regularity conditions
+fail, and `G` is not asymptotically `χ²_r` for any `r`. Quoting a chi-squared
+p-value for a mixture likelihood ratio is a standard and serious error, so
+`GMMGLRT` does not accept an `asymptotic` calibration argument at all — the
+mistake is made structurally impossible rather than merely discouraged.
+
+---
+
+## 3. Calibration
+
+Every case supports two calibrations.
+
+**Asymptotic.** The Wilks `χ²_r` reference. Closed form and immediate, and an
+*approximation* whose finite-sample quality is exactly what must be checked
+before it is trusted.
+
+**Permutation (default).** Under `H₀` the pooled sample is exchangeable, so
+every assignment of `n` of the `n+m` rows to the first group is equally likely.
+Drawing `B` such assignments yields an exact finite-sample null for any
+statistic, under no distributional assumption and regardless of whether the
+model is correctly specified.
+
+P-values use
+
+$$p = \frac{1 + \#\{G_{\text{perm}} \ge G_{\text{obs}}\}}{1 + B}$$
+
+rather than the naive ratio. The naive form can return exactly zero, which is
+not a valid p-value and renders the test anti-conservative; the corrected form
+is provably valid at any level for any `B`. Verified empirically: at `B = 49`
+the measured `P(p ≤ 0.05) = 0.0415` with the p-value floor at exactly
+`1/(B+1) = 0.0200`.
+
+---
+
+## 4. Installation and use
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Python 3.10 or later. No GPU is required and no neural network is trained; the
-heaviest dependency is scikit-learn.
+Python 3.10 or later. No GPU, and no neural network is trained.
 
-Datasets are cached outside the repository. Set the cache location before the
-first run:
+Datasets are cached outside the repository:
 
 ```bash
 export SHIFTBENCH_DATA=/path/to/cache     # Windows: set SHIFTBENCH_DATA=C:\path\to\cache
 ```
 
-If unset, the cache defaults to `ponnam/data/raw`, which is `.gitignore`d. On a
-OneDrive-synchronised checkout, set it to a local path — the datasets total
-roughly 250 MB and there is no reason to synchronise them.
+If unset, the cache defaults to `ponnam/data/raw`, which is ignored by git. On
+a OneDrive-synchronised checkout, set it to a local path; the datasets total
+roughly 380 MB.
 
----
+### Reproduction
 
-## 3. Reproducing the results
-
-The four studies must be run in this order; each depends on the one before it.
+The studies must be run in order; each depends on the one before it.
 
 ```bash
-python scripts/00_verify_data.py        # download, split, write the manifest
+python scripts/00_verify_data.py        # download, split, write the digest manifest
 python scripts/01_calibration.py        # Type-I error under a true null
 python scripts/02_probe_power.py        # power curves on synthetic probes
 python scripts/03_image_pipeline.py --dataset mnist
 python scripts/04_latency.py            # wall-clock cost per test
-python scripts/05_figures.py            # figures for the presentation
+python scripts/05_figures.py            # figures
 ```
 
-Every script accepts `--help`. Results are written to `results/` as Parquet
-(raw, one row per replicate) and CSV (summarised).
-
-Studies 1–3 parallelise across processes with `--jobs` (default: all cores,
-`--jobs 1` for serial). Seeds are derived from the cell's own coordinates
-rather than from a shared generator, so `--jobs 1` and `--jobs 16` produce
-identical numbers.
-
-Run `04_latency.py` on an otherwise idle machine; it pins itself to one core
-and reports the minimum over repeated passes, but it cannot compensate for
-fourteen other workers competing for cache.
-
-### Two targeted studies
-
-The GMM GLRT costs three EM fits per permutation, so it is not run over the
-full grid. Its purpose is one specific claim — that a mixture model recovers
-what a single-Gaussian model cannot see — and it is run only where that claim
-lives:
-
-```bash
-python scripts/02_probe_power.py --probes mixture \
-    --tests glrt_gauss glrt_gmm2 ks_bonferroni mmd c2st \
-    --eps 0.5 0.7 0.9 --sizes 20 50 100 200 --replicates 50
-```
-
-The dimension sweep tests the Reddi et al. claim that kernel-test power decays
-polynomially in dimension against a *fair* alternative — one whose intrinsic
-difficulty is held fixed as `d` grows, which `mean_sparse` at constant `ε` is:
-
-```bash
-python scripts/02_probe_power.py --probes mean_sparse \
-    --dims 2 8 32 128 512 --eps 0.8 --sizes 50 100 200
-```
+Every script accepts `--help`. Studies 1–3 parallelise with `--jobs` (default:
+all cores). Per-cell seeds are derived from the cell's own coordinates rather
+than from a shared generator, so `--jobs 1` and `--jobs 16` produce identical
+numbers. Run `04_latency.py` on an otherwise idle machine; it pins itself to a
+single core and reports the minimum over repeated passes.
 
 ### Verifying that your data matches
 
-`00_verify_data.py` writes `results/MANIFEST.json`, containing a SHA-256 digest
-of each dataset split. The manifest is committed; the data is not, since it is
-large and derived deterministically from this code. To confirm your copy
-matches before contributing results:
+`00_verify_data.py` writes `results/MANIFEST.json`, holding a SHA-256 digest per
+dataset split. The manifest is committed; the data is not, since it is large and
+derived deterministically from this code.
 
 ```bash
 python scripts/00_verify_data.py --check results/MANIFEST.json
 ```
 
-A mismatch means a different seed, a different library version, or a corrupted
-download. All three silently invalidate a cross-workstream comparison and none
-are otherwise visible.
+A mismatch indicates a different seed, a different library version, or a
+corrupted download — each of which silently invalidates a cross-workstream
+comparison and none of which is otherwise visible.
 
 ---
 
-## 4. The unified specification
+## 5. Result: the asymptotic null must be verified, not assumed
 
-`configs/unified.yaml` is the contract between the workstreams. It fixes the
-significance levels, the sample-size grid, the replicate counts, the
-permutation budget, the reduction dimension and the dataset list. A result
-produced against different values is not comparable and should not be placed on
-a shared axis.
+The project brief directs that the GLRT's theoretical chi-squared behaviour be
+verified empirically before it is relied upon. It does not hold.
 
-The settings that matter most:
+Measured over 500 replicates per cell, at nominal `α = 0.05`, case D (`d = 32`):
 
-| Setting | Value | Reason |
+| Calibration | `n = 20` | `n = 50` | `n = 200` |
+| --- | --- | --- | --- |
+| Asymptotic `χ²` | **0.198** | 0.055 | **0.000** |
+| Permutation | 0.053 | 0.045 | 0.049 |
+
+This is the **same statistic on the same data**; only the reference
+distribution differs. The asymptotic version rejects four times too often at
+`n = 20` and never at `n = 200`. It does not merely drift — it crosses the
+nominal level from above to below as `n` grows, so no single correction factor
+repairs it. The permutation calibration holds its level throughout.
+
+Two mechanisms are responsible, and they pull in opposite directions. Each
+per-sample covariance MLE has rank at most `n − 1`, so at `d = 32, n = 20` the
+log-determinants diverge and must be stabilised by shrinkage toward a scaled
+identity. The shrunk statistic is no longer the exact likelihood ratio, so
+Wilks no longer applies even asymptotically. At small `n` the rank deficiency
+inflates `G` relative to `χ²₅₂₈`; at large `n` the shrinkage bias dominates and
+deflates it.
+
+A corollary, relevant to the z/t workstream: the univariate z-test — case A's
+assumption that the variance is known, applied per coordinate — rejects at
+**0.093** against a nominal 0.05 at `n = 20`, converging to the t-test's 0.050
+by `n = 50`. That gap is the cost of the known-variance assumption, measured.
+
+---
+
+## 6. The synthetic probe suite
+
+Image shifts are realistic but opaque: when a test fails on `large_img_shift`
+it is not evident which assumption was violated. The probes are the opposite —
+each breaks exactly one assumption with everything else held fixed.
+
+Each is parameterised by an effect size `ε` and dimension `d`. Setting `ε = 0`
+draws both samples from the same distribution, which is what the calibration
+study consumes.
+
+| Probe | Construction | Structurally blind |
 | --- | --- | --- |
-| `alphas` | 0.01, 0.05, 0.10 | The paper fixes 0.05; reporting three makes the conservatism of a Bonferroni correction visible as a curve rather than a point. |
-| `sample_sizes` | 10 … 1000 | The paper's grid. The lower end is the regime the project's central claim concerns. |
-| `n_permutations` | 500 | Bounds the smallest attainable p-value at 1/501 ≈ 0.002, below the smallest reported α. |
-| `calibration_replicates` | 500 | Binomial standard error at α = 0.05 is then ≈ 0.010, enough to resolve a genuine miscalibration. |
-| `reduction_k` | 32 | The paper's setting; 32 principal components explain roughly 80 % of CIFAR-10's variance. |
-| `match_source_target` | true | See Section 5.3. |
+| `mean_sparse` | mean shift in one coordinate | — |
+| `mean_dense` | same shift norm spread over all coordinates | — (Bonferroni-corrected marginals lose heavily) |
+| `variance` | equal means, scaled covariance | GLRT A, B; Hotelling; Chen–Qin |
+| `correlation` | identical marginals, equicorrelated joint | GLRT A, B, C; **every** marginal test; Hotelling; Chen–Qin |
+| `mixture` | two-component mixture matched to `N(0,I)` in mean **and** covariance | GLRT A, B, C, D |
+| `heavy_tail` | Student-t rescaled to unit variance | mean-only tests |
+| `skew` | skewed with mean and variance fixed | mean-only and variance-only tests |
+
+"Blind" is structural, not empirical: the quantity the test examines is
+identical under `p` and `q` by construction, so no sample size rescues it. A
+flat power curve at the nominal level confirms the construction.
+
+Two probes carry the argument, and both are verified numerically:
+
+- **`correlation`** has unit marginal variances with off-diagonal correlation
+  0.800, against 0.008 for the reference. Identical marginals, different joint.
+  This is the ceiling on cases A–C and on the entire per-coordinate family —
+  the evidence is not present in any one-dimensional marginal, so no
+  multiplicity correction can recover it. Case D, which models the full
+  covariance, detects it.
+- **`mixture`** matches `N(0, I)` in mean and variance to within 1 % at
+  `ε = 0.8`. Cases A–D are therefore blind by construction however much data
+  they receive; case E has the correct model class.
+
+Together these establish the project's central structure: **each GLRT case is
+exactly blind to the shifts its model cannot express**, and the hierarchy
+A ⊂ B ⊂ C ⊂ D ⊂ E buys sensitivity to successively more general alternatives at
+the cost of estimating successively more parameters.
 
 ---
 
-## 5. Fidelity to the source material
+## 7. Benchmark fidelity
 
-The benchmark reproduces *Failing Loudly* where doing so is correct, and
-departs from it where the reference implementation is misleading. Every
-departure is listed here.
+The real-data benchmark reproduces Rabanser, Günnemann and Lipton, *Failing
+Loudly* (NeurIPS 2019), with parameters taken from the authors' reference
+implementation rather than the paper's prose. The two disagree; every departure
+is recorded here.
 
-### 5.1 The paper's prose understates the image shifts
+**The prose understates the image shifts.** Section 4 lists rotations
+`{10, 40, 90}`, translations `{0.05, 0.2, 0.4}` and zooms `{0.1, 0.2, 0.4}`. The
+code additionally applies shear `{0.1, 0.2, 0.3}`, a random horizontal flip at
+medium intensity, and both flips at large intensity. A horizontal flip is a far
+stronger perturbation of MNIST than a 40-degree rotation, so an implementation
+following only the prose measures a materially weaker shift. This package
+follows the code.
 
-Section 4 of the paper describes the image shift as random rotations
-`{10, 40, 90}`, translation percentages `{0.05, 0.2, 0.4}` and zoom percentages
-`{0.1, 0.2, 0.4}`. The reference implementation additionally applies a shear of
-`{0.1, 0.2, 0.3}`, a random **horizontal flip** at medium intensity, and both
-horizontal and vertical flips at large intensity.
+**Gaussian-noise intensities are in raw 0–255 units.** The quoted
+`σ ∈ {1, 10, 100}` is divided by 255 before being added to data already scaled
+to `[0,1]`, and the result is clipped back to `[0,1]`. Effective standard
+deviations are approximately `{0.0039, 0.0392, 0.3922}`. The clipping matters
+more than the scaling: measured on MNIST at `σ = 100`, the fraction of
+exactly-zero pixels falls from 0.809 to 0.424 while saturation at 1 rises from
+0.007 to 0.060, and the mean rises from 0.131 to 0.247. The detectable signal is
+boundary mass, not added variance — and that same clipping violates the
+continuity assumption underlying the KS test's null distribution.
 
-This is not a cosmetic difference. A horizontal flip is a far more aggressive
-perturbation of MNIST than a 40-degree rotation, so an implementation following
-only the prose measures a substantially weaker shift and will report lower
-detection rates for every method. This package follows the code.
+**Source and target sample sizes are matched here; they are not in the
+reference.** That code passes the full source sample to the univariate tests but
+subsamples the source to the target's size before the kernel test, so KS runs at
+10 000 against `n` while MMD runs at `n` against `n`. The asymmetry flatters the
+univariate family at exactly the small `n` this project concerns. Both sides are
+matched here, and the `source_n` column records the choice.
 
-### 5.2 Gaussian-noise intensities are in raw 0–255 units
+**The MMD bandwidth is not the standard median heuristic.** The reference calls
+`torch_two_sample` with `alphas=[1/median_dist]` against a kernel
+`exp(−α‖x−y‖²)`, giving `exp(−‖x−y‖²/median_dist)`. The standard heuristic is
+`exp(−‖x−y‖²/(2σ²))` with `σ²` the median *squared* distance — roughly a tenfold
+difference in width on normalised data. Both are implemented (`mmd`,
+`mmd_median_sq`) because the difference moves conclusions: on the `mixture`
+probe at `n = 100, d = 16`, the reference bandwidth returns `p = 0.79` where the
+standard one returns `p = 0.07`.
 
-The quoted standard deviations `σ ∈ {1, 10, 100}` are divided by 255 before
-being added to data already scaled to `[0, 1]`, and the sum is clipped back to
-`[0, 1]`. Effective standard deviations are therefore approximately
-`{0.0039, 0.0392, 0.3922}`.
-
-The clipping matters more than the scaling. At `σ = 100` a large fraction of
-pixels saturate at exactly 0 or 1, so the shifted marginal is strongly bimodal
-with atoms at both boundaries. That boundary mass, not the added variance, is
-what most tests actually detect — and it is also what breaks the continuity
-assumption underlying the KS test's null distribution.
-
-### 5.3 Source and target sample sizes are matched here, and are not in the reference
-
-The reference implementation passes the **full** source sample to the
-univariate tests but subsamples the source to the target's size before the
-kernel test. A KS test therefore runs at 10 000 against *n*, while MMD runs at
-*n* against *n*.
-
-That asymmetry flatters the univariate family at precisely the small *n* this
-project is about. Both sides are matched here. The `source_n` column records
-the choice, so the other convention can be reproduced for comparison.
-
-### 5.4 The MMD bandwidth is not the standard median heuristic
-
-The reference implementation calls `torch_two_sample` with
-`alphas=[1/median_dist]`, where `median_dist` is the median *Euclidean*
-distance, and that library's kernel is `exp(-α‖x−y‖²)`. The effective kernel is
-therefore `exp(-‖x−y‖²/median_dist)`.
-
-The standard median heuristic is `exp(-‖x−y‖²/(2σ²))` with `σ²` the median of
-the *squared* distances. Since the median squared distance is roughly the
-square of the median distance, the paper's bandwidth is wider by a factor of
-order `median_dist` — about tenfold on normalised CIFAR-10.
-
-Both are implemented (`mmd` and `mmd_median_sq`) because the difference is
-large enough to move power curves. On the `mixture` probe at n = 100, d = 16,
-the paper's bandwidth returns p = 0.79 where the standard heuristic returns
-p = 0.07.
-
-### 5.5 Omissions
-
-* **The adversarial (FGSM) shift is not implemented.** It requires a trained
-  neural network to generate the adversarial examples. Every other shift in the
-  catalogue is reproduced.
-* **The two autoencoder reductions (`UAE`, `TAE`) are not implemented.** Their
-  only role is to produce a 32-dimensional embedding, and PCA already provides a
-  linear one to compare against.
-* **`BBSDs`/`BBSDh` use multinomial logistic regression, not ResNet-18.** The
-  mechanism under test is "project onto a label classifier's outputs", and a
-  convex classifier exercises it without a training budget. The reduction is
-  consequently weaker than the paper's, so BBSD results here are a lower bound
-  on what the paper's version achieves, not a reproduction of it.
-
-The last three omissions follow the project brief's direction that training a
-model is not in itself recognised as progress.
+**Omissions.** The adversarial (FGSM) shift requires a trained network and is
+not implemented; every other shift in the catalogue is. The two autoencoder
+reductions are omitted, PCA providing a linear 32-dimensional embedding to
+compare against. `BBSDs`/`BBSDh` use multinomial logistic regression rather than
+ResNet-18, so BBSD results here are a lower bound on the paper's rather than a
+reproduction of them.
 
 ---
 
-## 6. Package layout
+## 8. Recording conventions
+
+**Two kinds of "cannot compute", recorded differently.**
+
+*The test does not exist at this `(n, d)`.* Case B requires inverting a pooled
+covariance that is a sum of `n+m−2` rank-one terms, so it is singular once
+`d ≥ n+m−2`. A practitioner reaching for it there obtains nothing. That is
+genuinely **zero power**, recorded as a non-rejection and appearing on the power
+curve as a flat line at zero — the finding, not a gap. The `singular` flag
+records why.
+
+*The compute was declined.* Case D's permutation test costs `O(B·d³)`; at
+`d = 784` with `B = 500` that is of order 10¹² floating-point operations per
+cell. Case E needs three EM fits per permutation. These are budget decisions,
+not properties of the test, so such cells are flagged `skipped`, carry
+`p_value = NaN`, and are **excluded** from rejection rates rather than averaged
+in as zeros.
+
+**Reductions are fitted on training data only.** The source and target samples
+are drawn from the validation and test splits; the reduction never sees the data
+it will be used to compare.
+
+**Detection after reduction is a weaker claim than it appears.** Every reduction
+maps `D` dimensions onto `K ≪ D` and is therefore surjective, so each can map a
+genuinely shifted input distribution onto an unshifted latent one. What is
+tested is `p(f(x)) = q(f(x))`, not `p(x) = q(x)`.
+
+---
+
+## 9. Package layout
 
 ```
 ponnam/
 ├── shiftbench/
-│   ├── datasets.py        Deterministic loading and splitting; split digests
-│   ├── _download.py       Fast mirrors (the canonical ones throttle to ~15 kB/s)
-│   ├── shifts.py          The Failing Loudly shift catalogue, exact parameters
-│   ├── synthetic.py       Seven probes with known ground truth
-│   ├── reductors.py       NoRed, PCA, SRP, BBSDs, BBSDh
 │   ├── tests/
-│   │   ├── base.py        TwoSampleTest interface; permutation machinery;
-│   │   │                  Bonferroni / Holm / Simes / Fisher combiners
-│   │   ├── univariate.py  KS, Welch-t, z, Anderson–Darling, Mann–Whitney
-│   │   ├── parametric.py  Hotelling T², diagonal T², Gaussian GLRT,
-│   │   │                  GMM GLRT, Chen–Qin
-│   │   ├── nonparametric.py  MMD, energy distance
-│   │   └── classifier.py  C2ST
-│   └── experiment.py      Calibration, probe-power and image-pipeline drivers
-├── scripts/               The five numbered entry points
-├── configs/unified.yaml   The cross-workstream contract
-└── results/               Outputs (figures and tables; data is gitignored)
+│   │   ├── glrt.py            Cases A–E, both calibrations        [subject]
+│   │   ├── base.py            TwoSampleTest interface; permutation
+│   │   │                      machinery; Bonferroni/Holm/Simes/Fisher
+│   │   ├── parametric.py      Hotelling T², diagonal T², Chen–Qin  [comparators]
+│   │   ├── univariate.py      KS, Welch-t, z, Anderson–Darling,
+│   │   │                      Mann–Whitney                         [comparators]
+│   │   ├── nonparametric.py   MMD, energy distance                 [baselines]
+│   │   └── classifier.py      C2ST                                 [baselines]
+│   ├── synthetic.py           Seven probes with known ground truth
+│   ├── datasets.py            Deterministic loading, splitting, digests
+│   ├── _download.py           Fast mirrors (canonical ones throttle to ~15 kB/s)
+│   ├── shifts.py              Failing Loudly catalogue, exact parameters
+│   ├── reductors.py           NoRed, PCA, SRP, BBSDs, BBSDh
+│   └── experiment.py          Calibration, probe-power, image-pipeline drivers
+├── scripts/                   Six numbered entry points
+├── configs/unified.yaml       Cross-workstream specification
+└── results/                   Figures, summary tables, manifest
 ```
 
-### Adding a test
+### Adding a GLRT case
 
-Subclass `TwoSampleTest`, implement `_run(x, y, rng) -> TestResult`, and
-register it in `shiftbench/tests/__init__.py`. It is then automatically
-available to every script and every figure. The interface is the only
-requirement:
+Subclass `GLRT`, supply `_statistic` and `_wilks_df`, and register the variant:
 
 ```python
-from shiftbench.tests.base import TwoSampleTest, TestResult, permutation_pvalue
+from shiftbench.tests.glrt import GLRT
 
-class MyTest(TwoSampleTest):
-    name = "my_test"
+class MyGLRT(GLRT):
+    name = "glrt_mine"
 
-    def _run(self, x, y, rng):
-        p, stat, _ = permutation_pvalue(x, y, my_statistic, 500, rng)
-        return TestResult(p, stat, self.name)
+    def _wilks_df(self, d):
+        return float(d)                       # free parameters gained under H1
+
+    def _statistic(self, x, y):
+        return 2.0 * (ll(x) + ll(y) - ll(np.concatenate([x, y])))
 ```
 
-Any new test must clear `scripts/01_calibration.py` before its power numbers
-are used.
+Set `wilks_df_valid = False` if the regularity conditions fail; constructing the
+class with `calibration="asymptotic"` will then raise rather than return an
+invalid p-value. Any new case must clear `scripts/01_calibration.py` before its
+power numbers are used.
 
 ---
 
-## 7. Test inventory and ownership
+## 10. Test registry
 
-| Owner | Registry keys |
+| Role | Keys |
 | --- | --- |
-| KS | `ks_bonferroni`, `ks_holm`, `ks_simes`, `ks_fisher` |
-| z / t | `z_bonferroni`, `t_bonferroni`, `t_simes` |
-| Corrections | `ad_bonferroni`, `mwu_bonferroni`, and every `*_holm` / `*_simes` / `*_fisher` pairing |
-| GLRT | `glrt_gauss`, `glrt_gauss_asym`, `glrt_gmm2`, `glrt_gmm3` |
-| Shared comparators | `hotelling`, `hotelling_perm`, `hotelling_ridge`, `diag_hotelling`, `chen_qin`, `mmd`, `mmd_median_sq`, `energy`, `c2st`, `c2st_knn` |
-
----
-
-## 8. The probe suite
-
-Each probe is a pair of distributions parameterised by an effect size `ε` and a
-dimension `d`. Setting `ε = 0` draws both samples from the same distribution,
-which is what the calibration study consumes.
-
-| Probe | Construction | Structurally blind to |
-| --- | --- | --- |
-| `mean_sparse` | Mean shift in one coordinate | — |
-| `mean_dense` | Same total shift norm spread over all coordinates | — (but Bonferroni-corrected marginals lose heavily) |
-| `variance` | Equal means, scaled covariance | every mean-only test: t, z, Hotelling, Chen–Qin |
-| `correlation` | Identical marginals, equicorrelated joint | **every marginal test** (KS, t, z, AD, MWU) *and* every mean-only test |
-| `mixture` | Two-component mixture matched to `N(0, I)` in mean **and** covariance | t, z, Hotelling, Chen–Qin, Gaussian GLRT |
-| `heavy_tail` | Student-t rescaled to unit variance | mean-only tests |
-| `skew` | Skewed with mean and variance held fixed | mean-only and variance-only tests |
-
-"Blind" is a structural claim, not an empirical one: the quantity the test
-examines is identical under `p` and `q` by construction, so no sample size
-rescues it. A flat power curve sitting at the nominal level confirms the
-construction rather than indicating a bug.
-
-`correlation` and `mixture` are the two that carry the argument.
-
-- **`correlation`** is the case no multiple-testing correction can rescue. The
-  evidence is not present in any one-dimensional marginal, so the entire
-  multiple-univariate family has a ceiling that is structural rather than a
-  matter of power. Confirmed empirically: at n = 100, d = 16, ε = 0.8, the
-  Gaussian GLRT, MMD and the energy test all return p ≈ 0.002, while KS,
-  Welch-t, z, Hotelling and Chen–Qin all return p > 0.08.
-- **`mixture`** separates "parametric" from "Gaussian". The first two moments
-  match exactly, so a single-Gaussian GLRT is blind by construction while a
-  two-component GMM GLRT has the right model class.
-
----
-
-## 9. Methodological commitments
-
-**Permutation calibration by default.** Under `H₀` the pooled sample is
-exchangeable, so permuting group assignments gives an exact finite-sample null
-for any statistic, with no distributional assumption. This matters here because
-the asymptotic nulls of several classical tests are visibly wrong at n = 10.
-
-**The `+1` correction.** Permutation p-values are computed as
-`(1 + #{T_perm ≥ T_obs}) / (1 + B)`, not `#{T_perm ≥ T_obs} / B`. The naive form
-can return exactly zero, which is not a valid p-value and makes the test
-anti-conservative. This is the difference between a test that holds its nominal
-level and one that does not, and it is verified empirically rather than assumed.
-
-**Reduction is fitted on training data only.** The source and target samples are
-drawn from the validation and test splits respectively; the reduction never sees
-the data it will be used to compare.
-
-**Two kinds of "cannot compute", recorded differently.** They are not the same
-thing and merging them would corrupt the power estimates in opposite directions.
-
-*The test does not exist at this `(n, d)`.* Hotelling's `T²` requires inverting
-a pooled covariance that is a sum of `n₁+n₂−2` rank-one terms, so it is singular
-the moment `d ≥ n₁+n₂−2`. A practitioner who reaches for it there gets nothing.
-That is genuinely **zero power**, so it is recorded as a non-rejection and
-appears on the power curve as a flat line at zero — which is the finding, not a
-gap in the data. The `singular` flag records why.
-
-*We declined to spend the compute.* The permutation-calibrated Gaussian GLRT
-costs `O(B·d³)`; at `d = 784` with `B = 500` that is of order 10¹² floating-point
-operations per cell. The GMM GLRT needs three EM fits per permutation. These are
-budget decisions of ours, not properties of the test, so those cells are flagged
-`skipped`, carry `p_value = NaN`, and are **excluded** from rejection rates
-rather than averaged in as zeros. Counting our own budget limit as a failure to
-detect would understate the method.
-
-**Detection after reduction is a weaker claim than it appears.** Every reduction
-maps `D` dimensions onto `K ≪ D` and is therefore surjective, so each is capable
-of mapping a genuinely shifted input distribution onto an unshifted latent one.
-What is being tested is `p(f(x)) = q(f(x))`, not `p(x) = q(x)`. The paper argues
-this is empirically benign outside adversarial settings; it remains an
-assumption and is stated rather than glossed.
-
----
-
-## 10. Current status
-
-Implemented and verified:
-
-- Dataset loading, deterministic splitting, digest manifest
-- Full shift catalogue (28 shifts) less the adversarial shift
-- Seven synthetic probes
-- Twenty-three registered tests, all passing the calibration check
-- Calibration, probe-power, image-pipeline and latency drivers
-- Figure generation
-
-Calibration results at n = 50, d = 16 under a Gaussian null, 300 replicates:
-every permutation-calibrated test holds its nominal level within three binomial
-standard errors. Two tests are *conservative* — `ks_fisher` (0.007 at α = 0.05)
-and `glrt_gauss_asym` (0.007 at α = 0.05). Both under-reject, which costs power
-but does not invalidate the false-alarm guarantee. The causes are identified:
-Fisher's method compounds the discreteness-induced conservatism of small-sample
-KS p-values, and the asymptotic GLRT's χ² reference distribution is wrong at
-these sample sizes given the shrinkage applied to keep the covariance estimates
-non-singular.
+| **GLRT (subject)** | `glrt_a_knowncov`, `glrt_b_mean`, `glrt_c_diag`, `glrt_d_meancov`, `glrt_e_gmm2`, `glrt_e_gmm3`, each with an `_asym` counterpart where Wilks applies, plus `glrt_b_mean_exactf` |
+| Classical comparators | `hotelling`, `hotelling_ridge`, `diag_hotelling`, `chen_qin`, `ks_bonferroni`, `ks_holm`, `ks_simes`, `ks_fisher`, `t_bonferroni`, `t_simes`, `z_bonferroni`, `ad_bonferroni`, `mwu_bonferroni` |
+| Non-parametric baselines | `mmd`, `mmd_median_sq`, `energy`, `c2st`, `c2st_knn` |
 
 ---
 
@@ -386,17 +383,17 @@ non-singular.
 1. S. Rabanser, S. Günnemann, Z. C. Lipton. *Failing Loudly: An Empirical Study
    of Methods for Detecting Dataset Shift.* NeurIPS 2019. arXiv:1810.11953.
    Reference implementation: <https://github.com/steverab/failing-loudly>
-2. A. Gretton, K. M. Borgwardt, M. J. Rasch, B. Schölkopf, A. Smola. *A Kernel
+2. S. S. Wilks. *The Large-Sample Distribution of the Likelihood Ratio for
+   Testing Composite Hypotheses.* Annals of Mathematical Statistics 9(1), 1938.
+3. H. Hotelling. *The Generalization of Student's Ratio.* Annals of Mathematical
+   Statistics 2(3), 1931.
+4. A. Gretton, K. M. Borgwardt, M. J. Rasch, B. Schölkopf, A. Smola. *A Kernel
    Two-Sample Test.* JMLR 13 (2012), 723–773.
-3. D. Lopez-Paz, M. Oquab. *Revisiting Classifier Two-Sample Tests.* ICLR 2017.
+5. D. Lopez-Paz, M. Oquab. *Revisiting Classifier Two-Sample Tests.* ICLR 2017.
    arXiv:1610.06545.
-4. S. X. Chen, Y.-L. Qin. *A Two-Sample Test for High-Dimensional Data with
+6. S. X. Chen, Y.-L. Qin. *A Two-Sample Test for High-Dimensional Data with
    Applications to Gene-Set Testing.* Annals of Statistics 38(2), 2010.
    arXiv:1002.4547.
-5. S. J. Reddi, A. Ramdas, B. Póczos, A. Singh, L. Wasserman. *On the Decreasing
+7. S. J. Reddi, A. Ramdas, B. Póczos, A. Singh, L. Wasserman. *On the Decreasing
    Power of Kernel and Distance Based Nonparametric Hypothesis Tests in High
    Dimensions.* AAAI 2015. arXiv:1406.2083.
-6. F. Liu, W. Xu, J. Lu, G. Zhang, A. Gretton, D. J. Sutherland. *Learning Deep
-   Kernels for Non-Parametric Two-Sample Tests.* ICML 2020. arXiv:2002.09116.
-7. Z. C. Lipton, Y.-X. Wang, A. Smola. *Detecting and Correcting for Label Shift
-   with Black Box Predictors.* ICML 2018. arXiv:1802.03916.

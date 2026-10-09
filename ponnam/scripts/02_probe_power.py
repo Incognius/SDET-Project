@@ -41,12 +41,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shiftbench.experiment import run_probe_power  # noqa: E402
 
 DEFAULT_TESTS = [
-    "ks_bonferroni", "ks_simes",
-    "t_bonferroni", "z_bonferroni", "ad_bonferroni", "mwu_bonferroni",
-    "hotelling", "diag_hotelling", "chen_qin",
-    "glrt_gauss",
-    "mmd", "mmd_median_sq", "energy",
-    "c2st", "c2st_knn",
+    # The GLRT model hierarchy: each case assumes more and estimates more.
+    "glrt_a_knowncov", "glrt_b_mean", "glrt_c_diag", "glrt_d_meancov",
+    # Classical comparators.
+    "hotelling", "chen_qin", "ks_bonferroni", "t_bonferroni",
+    # Non-parametric baselines.
+    "mmd", "energy", "c2st",
 ]
 
 

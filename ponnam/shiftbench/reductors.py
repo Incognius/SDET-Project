@@ -164,10 +164,17 @@ class BBSD(Reductor):
     paper's version achieves, not as a reproduction of it.
     """
 
-    def __init__(self, soft: bool = True, max_iter: int = 200, seed: int = 0):
+    def __init__(
+        self,
+        soft: bool = True,
+        max_iter: int = 100,
+        seed: int = 0,
+        max_fit_samples: int = 10_000,
+    ):
         self.soft = soft
         self.max_iter = max_iter
         self.seed = seed
+        self.max_fit_samples = max_fit_samples
         self.name = "BBSDs" if soft else "BBSDh"
         self._model = None
         self._n_classes = None
@@ -179,6 +186,18 @@ class BBSD(Reductor):
         import warnings
 
         self._n_classes = int(len(np.unique(y)))
+
+        # Fitting on the full 50 000-example training split costs minutes per
+        # worker process and buys very little: a linear softmax saturates well
+        # before that, and the reduction's job is to be a fixed, informative
+        # projection rather than a state-of-the-art classifier.  The subsample
+        # is deterministic so the reduction stays reproducible.
+        if self.max_fit_samples and len(x) > self.max_fit_samples:
+            idx = np.random.default_rng(self.seed).choice(
+                len(x), self.max_fit_samples, replace=False
+            )
+            x, y = x[idx], y[idx]
+
         self._model = LogisticRegression(
             max_iter=self.max_iter, random_state=self.seed, n_jobs=-1
         )

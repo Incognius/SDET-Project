@@ -35,19 +35,23 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from shiftbench.experiment import run_calibration  # noqa: E402
 
+# The GLRT variants are the object of study. Each *_asym entry is the same
+# statistic as its permutation counterpart, calibrated by Wilks' theorem
+# instead, so the pairs measure exactly what the asymptotic approximation costs.
 FAST_TESTS = [
-    "ks_bonferroni", "ks_holm", "ks_simes", "ks_fisher",
-    "t_bonferroni", "t_simes", "z_bonferroni",
-    "ad_bonferroni", "mwu_bonferroni",
-    "hotelling", "hotelling_perm", "hotelling_ridge", "diag_hotelling",
-    "chen_qin", "glrt_gauss", "glrt_gauss_asym",
-    "mmd", "mmd_median_sq", "energy",
-    "c2st", "c2st_knn",
+    "glrt_a_knowncov", "glrt_a_knowncov_asym",
+    "glrt_b_mean", "glrt_b_mean_asym", "glrt_b_mean_exactf",
+    "glrt_c_diag", "glrt_c_diag_asym",
+    "glrt_d_meancov", "glrt_d_meancov_asym",
+    # Classical comparators.
+    "hotelling", "diag_hotelling", "chen_qin",
+    "ks_bonferroni", "t_bonferroni", "z_bonferroni",
+    # Non-parametric baselines.
+    "mmd", "energy", "c2st",
 ]
 
-# EM inside every permutation makes these two orders of magnitude slower than
-# the rest; they are opt-in via --include-slow.
-SLOW_TESTS = ["glrt_gmm2", "glrt_gmm3"]
+# Three EM fits per permutation; opt in with --include-slow.
+SLOW_TESTS = ["glrt_e_gmm2", "glrt_e_gmm3"]
 
 
 def summarise(df: pd.DataFrame) -> pd.DataFrame:

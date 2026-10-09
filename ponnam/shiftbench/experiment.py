@@ -251,55 +251,70 @@ def _fit_reductors(split: Split, reductor_names: Sequence[str]) -> Dict[str, obj
     return out
 
 
-def _image_cell(
+def _image_chunk(
     dataset: str,
     seed: int,
-    shift_name: str,
+    shift_names: Sequence[str],
     test_keys: Sequence[str],
     reductor_names: Sequence[str],
     sample_sizes: Sequence[int],
 ) -> List[dict]:
-    """One (dataset, seed, shift) cell: all reductions, tests and sample sizes.
+    """One (dataset, seed) job covering several shifts.
 
-    The split, the reduction fits and the shift application are the expensive,
-    shared parts of the work, so the cell is drawn at this granularity rather
-    than per test.
+    Loading a split and fitting the reductions are expensive and depend only on
+    ``(dataset, seed)`` -- fitting BBSDs means a multinomial logistic regression
+    on 50 000 examples, which costs minutes on CIFAR-10.  Batching all of a
+    seed's shifts into one job pays that cost once per job instead of once per
+    shift, which for the full 28-shift catalogue is a 28-fold saving on the
+    setup.
     """
     split = load_split(dataset, seed=seed)
     reductors = _fit_reductors(split, reductor_names)
-    spec = SHIFTS[shift_name]
-    rng = np.random.default_rng(_cell_seed(seed, "img", dataset, shift_name))
-
-    x_shift, y_shift = apply_shift(
-        split.x_test, split.y_test, spec, split.spec.image_shape, rng
-    )
 
     rows: List[dict] = []
-    for n in sample_sizes:
-        if n > len(x_shift) or n > len(split.x_val):
-            continue
-        src_raw = split.x_val[rng.choice(len(split.x_val), n, replace=False)]
-        tgt_raw = x_shift[rng.choice(len(x_shift), n, replace=False)]
+    for shift_name in shift_names:
+        spec = SHIFTS[shift_name]
+        # Seed from the shift name as well, so a shift's realisation does not
+        # depend on which chunk it happened to be placed in.
+        rng = np.random.default_rng(_cell_seed(seed, "img", dataset, shift_name))
+        x_shift, y_shift = apply_shift(
+            split.x_test, split.y_test, spec, split.spec.image_shape, rng
+        )
 
-        for red_name, red in reductors.items():
-            # BBSDh is a single categorical column; the continuous tests in
-            # this package are not applicable to it.
-            if red_name == "BBSDh":
+        for n in sample_sizes:
+            if n > len(x_shift) or n > len(split.x_val):
                 continue
-            src = red.transform(src_raw)
-            tgt = red.transform(tgt_raw)
-            for key in test_keys:
-                res = build_test(key)(src, tgt, rng)
-                rows.extend(
-                    _rows_from_result(
-                        res, study="image_pipeline", dataset=dataset, test=key,
-                        reductor=red_name, shift=shift_name,
-                        shift_family=spec.family, shift_intensity=spec.intensity,
-                        delta=spec.delta, is_null=int(spec.kind == "none"),
-                        d=int(src.shape[1]), n=n, source_n=n, seed=seed,
+            src_raw = split.x_val[rng.choice(len(split.x_val), n, replace=False)]
+            tgt_raw = x_shift[rng.choice(len(x_shift), n, replace=False)]
+
+            for red_name, red in reductors.items():
+                # BBSDh is a single categorical column; the continuous tests in
+                # this package are not applicable to it.
+                if red_name == "BBSDh":
+                    continue
+                src = red.transform(src_raw)
+                tgt = red.transform(tgt_raw)
+                for key in test_keys:
+                    res = build_test(key)(src, tgt, rng)
+                    rows.extend(
+                        _rows_from_result(
+                            res, study="image_pipeline", dataset=dataset,
+                            test=key, reductor=red_name, shift=shift_name,
+                            shift_family=spec.family,
+                            shift_intensity=spec.intensity, delta=spec.delta,
+                            is_null=int(spec.kind == "none"),
+                            d=int(src.shape[1]), n=n, source_n=n, seed=seed,
+                        )
                     )
-                )
     return rows
+
+
+def _chunk(seq: Sequence, n_chunks: int) -> List[List]:
+    """Split ``seq`` into at most ``n_chunks`` roughly equal contiguous pieces."""
+    seq = list(seq)
+    n_chunks = max(1, min(n_chunks, len(seq)))
+    size = -(-len(seq) // n_chunks)  # ceiling division
+    return [seq[i : i + size] for i in range(0, len(seq), size)]
 
 
 def run_image_pipeline(
@@ -331,11 +346,18 @@ def run_image_pipeline(
     if shift_names is None:
         shift_names = list(SHIFTS)
 
+    # Aim for a few jobs per worker so the pool stays busy even when shifts
+    # differ in cost, while keeping the per-job setup (split load, reductor
+    # fits) amortised over several shifts.
+    import os
+
+    workers = os.cpu_count() or 4 if n_jobs in (-1, 0) else abs(n_jobs)
+    chunks_per_seed = max(1, -(-(workers * 2) // max(1, len(seeds))))
     jobs = [
-        _Job(_image_cell, dataset, seed, shift_name, list(test_keys),
+        _Job(_image_chunk, dataset, seed, chunk, list(test_keys),
              list(reductor_names), list(sample_sizes))
         for seed in seeds
-        for shift_name in shift_names
+        for chunk in _chunk(shift_names, chunks_per_seed)
     ]
     out = _parallel(jobs, n_jobs, verbose, f"img:{dataset}")
     return pd.DataFrame([row for cell in out for row in cell])
