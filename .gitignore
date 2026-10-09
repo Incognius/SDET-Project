@@ -1,0 +1,27 @@
+# Datasets are large and are regenerated deterministically by
+# ponnam/scripts/00_verify_data.py; results/MANIFEST.json records their
+# digests so a checkout can be verified rather than shipped.
+ponnam/data/
+*.npz
+*.gz
+*.tar.gz
+*.part
+
+# Experiment outputs. Figures and summary tables are committed; the raw
+# per-replicate Parquet files are not, since they are large and reproducible.
+ponnam/results/*.parquet
+ponnam/*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

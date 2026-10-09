@@ -1,0 +1,61 @@
+{
+  "datasets": {
+    "cifar10": {
+      "digests": {
+        "0": "88518f120979e3c447ff2732235ff2f13d13d91ebabe3dfc543e44929caafddc",
+        "1": "64e5cc77f8989100e886daee1f86b8b5e06758eb299edfedcc3cfab1fb1544b6",
+        "2": "a6e5574045e80e1f35593a10f5249ae760ce02aa3ea78241c3c88c5e3b2896ad",
+        "3": "8163c6c56379e50e329a2834211bf08ca8c5c1dfbd7ba435acc44be044648dd3",
+        "4": "3b16d68a9d2fd2f88837801a293025694157d7e9554695ef0ee04d6de3476d75"
+      },
+      "dim": 3072,
+      "image_shape": [
+        32,
+        32,
+        3
+      ],
+      "n_classes": 10,
+      "n_test": 10000,
+      "n_train": 40000,
+      "n_val": 10000
+    },
+    "fashion_mnist": {
+      "digests": {
+        "0": "5ce8022842928d342f3c456ed8f5a5d415988a6d0122692d9a2732a71682d1d6",
+        "1": "d5a80954ab2751dd5531f7e84ef18c5340e6afc428b1d63b9aed5fba44e8d48f",
+        "2": "aad6c75e2ae93d92cad433a7434f412ba81a87a2abbff4c35230db05c08b4d80",
+        "3": "90724f8f0e1f0e2fc42c517313941e5c1e7b0ced4868328dc9b74bb6701bf28c",
+        "4": "927b4a9a74d800eb408756a7142e0212fa50e1481f4e96707bbbcb2bd2959c80"
+      },
+      "dim": 784,
+      "image_shape": [
+        28,
+        28,
+        1
+      ],
+      "n_classes": 10,
+      "n_test": 10000,
+      "n_train": 50000,
+      "n_val": 10000
+    },
+    "mnist": {
+      "digests": {
+        "0": "3cc33c2732197eccb558ffc6e06e5a0a1bc3bf3c07a2698162eeed61d33541cf",
+        "1": "5822775993d0b0be2f52abaf9377464910e33d712db00cf4061ae0b99451c108",
+        "2": "e89b451c1bad016f5f30e85746c13a2db8d900ee46a23217acf44d46fbc29d22",
+        "3": "70dff16eb4e909f4ca4136a267003cc35aa5df2eaf9072fef2d898a3f3cfafd4",
+        "4": "bef747ff899b53e432f4628c5e03d42e8dc62778022ba9c1b998bf6743d88800"
+      },
+      "dim": 784,
+      "image_shape": [
+        28,
+        28,
+        1
+      ],
+      "n_classes": 10,
+      "n_test": 10000,
+      "n_train": 50000,
+      "n_val": 10000
+    }
+  }
+}

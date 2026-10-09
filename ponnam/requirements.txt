@@ -1,0 +1,15 @@
+# Core numerical and statistical stack.
+numpy>=1.26
+scipy>=1.11
+scikit-learn>=1.3
+pandas>=2.0
+pyarrow>=14.0          # Parquet result tables, and the CIFAR-10 fetcher
+joblib>=1.3            # process-level parallelism across experiment cells
+matplotlib>=3.8        # figures
+pillow>=10.0           # decodes the CIFAR-10 Parquet export
+PyYAML>=6.0            # reads configs/unified.yaml
+
+# Optional. Only needed for the MNIST -> USPS domain-adaptation pair, which
+# is not part of the headline grid; MNIST, Fashion-MNIST and CIFAR-10 are
+# fetched directly by shiftbench/_download.py and do not require torchvision.
+# torchvision>=0.17

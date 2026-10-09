@@ -1,0 +1,98 @@
+# Unified benchmark specification
+#
+# This file is the contract between the four workstreams (KS, z/t,
+# multiple-testing corrections, GLRT).  Any result intended for the joint
+# comparison must be produced against this specification; a result produced
+# against different sample sizes, a different alpha grid or a different split
+# seed is not comparable and should not be placed on a shared axis.
+#
+# Change control: if a value here has to change, change it here and re-run
+# every workstream, rather than overriding it locally in one script.
+
+version: 1
+
+# ---------------------------------------------------------------------------
+# Significance levels
+# ---------------------------------------------------------------------------
+# The paper fixes alpha = 0.05.  We report three levels because the
+# conservatism of a Bonferroni correction is a function of alpha, and showing
+# it as a curve is more informative than a single point.
+alphas: [0.01, 0.05, 0.10]
+primary_alpha: 0.05
+
+# ---------------------------------------------------------------------------
+# Sample sizes
+# ---------------------------------------------------------------------------
+# Taken from the paper's protocol.  The lower end is the part of the grid this
+# project is really about: the claim under test is that classical parametric
+# methods beat the classifier- and kernel-based methods at n <= 100.
+sample_sizes: [10, 20, 50, 100, 200, 500, 1000]
+
+# Source and target samples are matched in size.  See the note in
+# experiment.run_image_pipeline: the reference implementation does not match
+# them, which flatters the univariate tests at small n.
+match_source_target: true
+
+# ---------------------------------------------------------------------------
+# Replication
+# ---------------------------------------------------------------------------
+# The paper averages over five random splits.  Calibration needs far more
+# replicates than power does, because it is estimating a probability near 0.05
+# where the binomial standard error is what limits resolution.
+image_split_seeds: [0, 1, 2, 3, 4]
+calibration_replicates: 500
+power_replicates: 200
+
+# ---------------------------------------------------------------------------
+# Permutation budget
+# ---------------------------------------------------------------------------
+# B = 500 bounds the achievable p-value at 1 / 501 ~ 0.002, which is well below
+# the smallest alpha reported, and gives a Monte-Carlo standard error on a
+# p-value near 0.05 of about 0.010.  Raising it buys resolution only; it does
+# not change validity, since the (1 + count) / (1 + B) estimator is exact for
+# any B.
+n_permutations: 500
+n_permutations_expensive: 100   # GMM-GLRT and permutation-calibrated C2ST
+
+# ---------------------------------------------------------------------------
+# Dimensionality reduction
+# ---------------------------------------------------------------------------
+# K = 32 is the paper's setting for PCA and SRP; it reports that 32 principal
+# components explain roughly 80% of CIFAR-10's variance.
+reduction_k: 32
+reductors: [NoRed, PCA, SRP, BBSDs]
+
+# ---------------------------------------------------------------------------
+# Datasets
+# ---------------------------------------------------------------------------
+datasets:
+  - mnist
+  - fashion_mnist
+  - cifar10
+
+# ---------------------------------------------------------------------------
+# Synthetic probes
+# ---------------------------------------------------------------------------
+# eps = 0 is the null and is always included: it is what the calibration study
+# consumes.
+probes:
+  - mean_sparse
+  - mean_dense
+  - variance
+  - correlation
+  - mixture
+  - heavy_tail
+  - skew
+probe_eps: [0.0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0]
+probe_dims: [2, 8, 32, 128]
+
+# ---------------------------------------------------------------------------
+# Test inventory, by owner
+# ---------------------------------------------------------------------------
+tests:
+  ks:        [ks_bonferroni, ks_holm, ks_simes, ks_fisher]
+  z_t:       [z_bonferroni, t_bonferroni, t_simes]
+  corrections: [ad_bonferroni, mwu_bonferroni]
+  glrt:      [glrt_gauss, glrt_gauss_asym, glrt_gmm2, glrt_gmm3]
+  shared:    [hotelling, hotelling_perm, hotelling_ridge, diag_hotelling,
+              chen_qin, mmd, mmd_median_sq, energy, c2st, c2st_knn]
