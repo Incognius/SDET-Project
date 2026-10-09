@@ -72,6 +72,37 @@ python scripts/05_figures.py            # figures for the presentation
 Every script accepts `--help`. Results are written to `results/` as Parquet
 (raw, one row per replicate) and CSV (summarised).
 
+Studies 1–3 parallelise across processes with `--jobs` (default: all cores,
+`--jobs 1` for serial). Seeds are derived from the cell's own coordinates
+rather than from a shared generator, so `--jobs 1` and `--jobs 16` produce
+identical numbers.
+
+Run `04_latency.py` on an otherwise idle machine; it pins itself to one core
+and reports the minimum over repeated passes, but it cannot compensate for
+fourteen other workers competing for cache.
+
+### Two targeted studies
+
+The GMM GLRT costs three EM fits per permutation, so it is not run over the
+full grid. Its purpose is one specific claim — that a mixture model recovers
+what a single-Gaussian model cannot see — and it is run only where that claim
+lives:
+
+```bash
+python scripts/02_probe_power.py --probes mixture \
+    --tests glrt_gauss glrt_gmm2 ks_bonferroni mmd c2st \
+    --eps 0.5 0.7 0.9 --sizes 20 50 100 200 --replicates 50
+```
+
+The dimension sweep tests the Reddi et al. claim that kernel-test power decays
+polynomially in dimension against a *fair* alternative — one whose intrinsic
+difficulty is held fixed as `d` grows, which `mean_sparse` at constant `ε` is:
+
+```bash
+python scripts/02_probe_power.py --probes mean_sparse \
+    --dims 2 8 32 128 512 --eps 0.8 --sizes 50 100 200
+```
+
 ### Verifying that your data matches
 
 `00_verify_data.py` writes `results/MANIFEST.json`, containing a SHA-256 digest
@@ -299,6 +330,24 @@ level and one that does not, and it is verified empirically rather than assumed.
 **Reduction is fitted on training data only.** The source and target samples are
 drawn from the validation and test splits respectively; the reduction never sees
 the data it will be used to compare.
+
+**Two kinds of "cannot compute", recorded differently.** They are not the same
+thing and merging them would corrupt the power estimates in opposite directions.
+
+*The test does not exist at this `(n, d)`.* Hotelling's `T²` requires inverting
+a pooled covariance that is a sum of `n₁+n₂−2` rank-one terms, so it is singular
+the moment `d ≥ n₁+n₂−2`. A practitioner who reaches for it there gets nothing.
+That is genuinely **zero power**, so it is recorded as a non-rejection and
+appears on the power curve as a flat line at zero — which is the finding, not a
+gap in the data. The `singular` flag records why.
+
+*We declined to spend the compute.* The permutation-calibrated Gaussian GLRT
+costs `O(B·d³)`; at `d = 784` with `B = 500` that is of order 10¹² floating-point
+operations per cell. The GMM GLRT needs three EM fits per permutation. These are
+budget decisions of ours, not properties of the test, so those cells are flagged
+`skipped`, carry `p_value = NaN`, and are **excluded** from rejection rates
+rather than averaged in as zeros. Counting our own budget limit as a failure to
+detect would understate the method.
 
 **Detection after reduction is a weaker claim than it appears.** Every reduction
 maps `D` dimensions onto `K ≪ D` and is therefore surjective, so each is capable

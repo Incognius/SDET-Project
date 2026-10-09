@@ -48,16 +48,33 @@ __all__ = [
 
 @dataclass
 class TestResult:
-    """Outcome of a single two-sample test."""
+    """Outcome of a single two-sample test.
+
+    ``skipped`` marks a cell the test declined to evaluate, with ``reason``
+    saying why.  This is kept distinct from "ran and did not reject": a test
+    that cannot be computed at a given ``(n, d)`` has no power there, and
+    recording that as a non-rejection would silently average a structural
+    impossibility together with genuine failures to detect.  Skipped cells
+    carry ``p_value = nan`` and are excluded from rejection rates rather than
+    counted as zeros.
+    """
 
     p_value: float
     statistic: float
     name: str
     elapsed_s: float = 0.0
+    skipped: bool = False
+    reason: str = ""
     meta: Dict[str, float] = field(default_factory=dict)
 
     def reject(self, alpha: float = 0.05) -> bool:
+        if self.skipped or not np.isfinite(self.p_value):
+            return False
         return bool(self.p_value < alpha)
+
+    @classmethod
+    def skip(cls, name: str, reason: str) -> "TestResult":
+        return cls(float("nan"), float("nan"), name, skipped=True, reason=reason)
 
 
 class TwoSampleTest:

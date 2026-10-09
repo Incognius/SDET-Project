@@ -219,10 +219,12 @@ class GaussianGLRT(TwoSampleTest):
         shrinkage: float = 0.1,
         calibration: str = "permutation",
         n_permutations: int = 500,
+        max_dim: int = 256,
     ):
         self.shrinkage = shrinkage
         self.calibration = calibration
         self.n_permutations = n_permutations
+        self.max_dim = max_dim
         self.name = f"GaussianGLRT[{calibration}]"
 
     def _logdet(self, a: np.ndarray) -> float:
@@ -248,6 +250,17 @@ class GaussianGLRT(TwoSampleTest):
 
     def _run(self, x, y, rng) -> TestResult:
         d = x.shape[1]
+        if d > self.max_dim:
+            # Each permutation needs three log-determinants of d x d matrices,
+            # so the permutation test costs O(B d^3): at d = 784 with B = 500
+            # that is of order 10^12 flops per cell, which is not a tuning
+            # problem but a structural one.  Declining the cell explicitly is
+            # more honest than returning a number nobody waited for, and the
+            # infeasibility is itself part of the latency argument for
+            # dimensionality reduction.
+            return TestResult.skip(
+                self.name, f"d={d} exceeds max_dim={self.max_dim}; O(B d^3)"
+            )
         if self.calibration == "asymptotic":
             stat = self._stat(x, y)
             # Free parameters gained under H1: one extra mean vector (d) plus
@@ -272,9 +285,16 @@ class GMMGLRT(TwoSampleTest):
     should recover the power that the single-Gaussian GLRT loses on exactly the
     multi-modal probe that defeats it.
 
-    The cost is substantial -- three EM fits per permutation -- so the default
-    permutation count is lower than for the closed-form statistics, and the
-    latency benchmark reports this honestly rather than hiding it.
+    The cost is substantial and is the reason this test is not run over the
+    full grid.  Every permutation requires three EM fits, so a single call
+    costs ``3 B`` fits; at ``B = 500`` that is 1500 fits and roughly a minute
+    per cell.  The defaults below (``B = 199``, ``max_iter = 20``, a loose
+    tolerance) bring one call to a few seconds, and the test is applied to the
+    one study it is designed to settle -- the ``mixture`` probe, where the
+    single-Gaussian GLRT is blind by construction -- rather than everywhere.
+    ``B = 199`` bounds the smallest attainable p-value at ``1/200 = 0.005``,
+    which is still below the smallest reported level.  The latency benchmark
+    reports this cost rather than hiding it.
 
     Calibration is by permutation only.  The asymptotic chi-squared null for a
     mixture likelihood ratio is not valid: the parameter under ``H0`` lies on
@@ -286,16 +306,20 @@ class GMMGLRT(TwoSampleTest):
     def __init__(
         self,
         n_components: int = 2,
-        n_permutations: int = 100,
+        n_permutations: int = 199,
         covariance_type: str = "diag",
         reg_covar: float = 1e-4,
-        max_iter: int = 50,
+        max_iter: int = 20,
+        tol: float = 1e-2,
+        max_dim: int = 256,
     ):
         self.n_components = n_components
         self.n_permutations = n_permutations
         self.covariance_type = covariance_type
         self.reg_covar = reg_covar
         self.max_iter = max_iter
+        self.tol = tol
+        self.max_dim = max_dim
         self.name = f"GMMGLRT(k={n_components},{covariance_type})[permutation]"
 
     def _fit_ll(self, a: np.ndarray, seed: int) -> float:
@@ -307,6 +331,9 @@ class GMMGLRT(TwoSampleTest):
             covariance_type=self.covariance_type,
             reg_covar=self.reg_covar,
             max_iter=self.max_iter,
+            tol=self.tol,
+            n_init=1,
+            init_params="k-means++",
             random_state=seed,
         )
         import warnings
@@ -323,6 +350,13 @@ class GMMGLRT(TwoSampleTest):
         return 2.0 * (ll1 - ll0)
 
     def _run(self, x, y, rng) -> TestResult:
+        d = x.shape[1]
+        if d > self.max_dim:
+            # Three EM fits per permutation; infeasible on raw pixels for the
+            # same reason as the Gaussian GLRT.
+            return TestResult.skip(
+                self.name, f"d={d} exceeds max_dim={self.max_dim}; 3 EM fits per permutation"
+            )
         p, obs, _ = permutation_pvalue(x, y, self._stat, self.n_permutations, rng)
         return TestResult(p, obs, self.name)
 

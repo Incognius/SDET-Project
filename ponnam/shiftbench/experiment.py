@@ -73,14 +73,22 @@ def _cell_seed(global_seed: int, *parts) -> int:
 
 
 def _rows_from_result(res, **fields) -> List[dict]:
-    """Expand one test result into one row per reported alpha."""
+    """Expand one test result into one row per reported alpha.
+
+    A skipped cell keeps ``p_value = nan`` and ``reject = 0`` but is flagged, so
+    that summaries can drop it.  Treating "could not be computed" as "did not
+    reject" would quietly average a structural impossibility into a power
+    estimate.
+    """
     return [
         dict(
             p_value=res.p_value,
             statistic=res.statistic,
             elapsed_s=res.elapsed_s,
+            skipped=int(res.skipped),
+            reason=res.reason,
             alpha=alpha,
-            reject=int(res.p_value < alpha),
+            reject=int(res.reject(alpha)),
             **fields,
         )
         for alpha in ALPHAS
