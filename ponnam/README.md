@@ -70,10 +70,12 @@ the threshold: Wilks gives the asymptotic `χ²_d`, while Hotelling's exact resu
 
 $$\frac{n+m-d-1}{d\,(n+m-2)}\,T^2 \sim F_{d,\;n+m-d-1}$$
 
-holds for every `n` under normality. Where both exist, the exact `F` should be
-preferred. The registry exposes all three calibrations of this one statistic
-(`glrt_b_mean`, `glrt_b_mean_asym`, `glrt_b_mean_exactf`) so the claim is
-measured rather than asserted.
+holds for every `n` under normality. Where both exist, the exact `F` must be
+preferred — and §5.1 shows this is not a refinement but the difference between a
+usable test and an unusable one: at `d = 32, n = 20` the two calibrations of this
+single statistic give Type-I errors of 0.053 and 0.947 respectively. The
+registry exposes all three calibrations (`glrt_b_mean`, `glrt_b_mean_asym`,
+`glrt_b_mean_exactf`) so the claim is measured rather than asserted.
 
 **Case E has no valid asymptotic null.** Under `H₀` the alternative's extra
 mixture components are unidentifiable and the null parameter lies on the
@@ -167,33 +169,96 @@ comparison and none of which is otherwise visible.
 ## 5. Result: the asymptotic null must be verified, not assumed
 
 The project brief directs that the GLRT's theoretical chi-squared behaviour be
-verified empirically before it is relied upon. It does not hold.
+verified empirically before it is relied upon. **It does not hold.** In the worst
+case measured it fails by a factor of nineteen.
 
-Measured over 500 replicates per cell, at nominal `α = 0.05`, case D (`d = 32`):
+Protocol: both samples drawn from the same distribution, so every rejection is a
+false alarm by construction. 324 cells, 500 replicates each, three null
+distributions (Gaussian, heavy-tailed, bimodal), `d ∈ {8, 32}`,
+`n ∈ {20, 50, 200}`. The binomial standard error at `α = 0.05` and `R = 500` is
+0.0097, so the three-sigma acceptance band is roughly `[0.021, 0.079]`.
+
+### 5.1 Case B: three calibrations of one statistic
+
+Case B admits all three — Wilks' asymptotic `χ²_d`, Hotelling's exact `F`, and
+permutation. Same statistic, same data, `d = 32`, nominal `α = 0.05`:
 
 | Calibration | `n = 20` | `n = 50` | `n = 200` |
 | --- | --- | --- | --- |
-| Asymptotic `χ²` | **0.198** | 0.055 | **0.000** |
-| Permutation | 0.053 | 0.045 | 0.049 |
+| Asymptotic `χ²_d` (Wilks) | **0.947** | **0.245** | 0.081 |
+| Exact `F` (Hotelling) | 0.053 | 0.049 | 0.053 |
+| Permutation | 0.041 | 0.049 | 0.049 |
 
-This is the **same statistic on the same data**; only the reference
-distribution differs. The asymptotic version rejects four times too often at
-`n = 20` and never at `n = 200`. It does not merely drift — it crosses the
-nominal level from above to below as `n` grows, so no single correction factor
-repairs it. The permutation calibration holds its level throughout.
+At `d = 32, n = 20` the asymptotic calibration **rejects 94.7 % of the time when
+nothing has changed**. It is not a test; it is a random number generator that
+says "shift" nineteen times out of twenty.
 
-Two mechanisms are responsible, and they pull in opposite directions. Each
-per-sample covariance MLE has rank at most `n − 1`, so at `d = 32, n = 20` the
-log-determinants diverge and must be stabilised by shrinkage toward a scaled
-identity. The shrunk statistic is no longer the exact likelihood ratio, so
-Wilks no longer applies even asymptotically. At small `n` the rank deficiency
-inflates `G` relative to `χ²₅₂₈`; at large `n` the shrinkage bias dominates and
-deflates it.
+The mechanism is precise. With `n + m = 40` observations in `d = 32` dimensions,
+the pooled covariance has 38 degrees of freedom for 32 dimensions — barely
+invertible — so `T²` is enormous and `G` with it. Wilks' `χ²_d` counts only the
+`d` mean parameters restricted under the null; it is blind to the cost of
+estimating the `d(d+1)/2` covariance parameters that go into `S_p⁻¹`. The exact
+`F` reference accounts for exactly that through its second degrees-of-freedom
+parameter `n+m−d−1`, which here is 7 rather than 38. That single term is the
+difference between 0.947 and 0.053.
 
-A corollary, relevant to the z/t workstream: the univariate z-test — case A's
-assumption that the variance is known, applied per coordinate — rejects at
-**0.093** against a nominal 0.05 at `n = 20`, converging to the t-test's 0.050
-by `n = 50`. That gap is the cost of the known-variance assumption, measured.
+**This is the concrete payoff of the identity in §2.2.** Recognising case B as
+Hotelling's `T²` is not a presentational nicety — it is what makes the exact `F`
+calibration available, and the exact calibration is the difference between a
+usable test and an unusable one.
+
+### 5.2 All four Gaussian cases
+
+Type-I error at `α = 0.05`, `d = 32`. Permutation rows in bold are the ones that
+hold.
+
+| Case | Calibration | `n = 20` | `n = 50` | `n = 200` |
+| --- | --- | --- | --- | --- |
+| A known-cov | asymptotic | 0.000 | 0.020 | 0.043 |
+| A known-cov | **permutation** | **0.058** | **0.049** | **0.057** |
+| B common-cov | asymptotic | 0.947 | 0.245 | 0.081 |
+| B common-cov | exact `F` | 0.053 | 0.049 | 0.053 |
+| B common-cov | **permutation** | **0.041** | **0.049** | **0.049** |
+| C diagonal | asymptotic | 0.123 | 0.061 | 0.055 |
+| C diagonal | **permutation** | **0.053** | **0.052** | **0.053** |
+| D mean+cov | asymptotic | 0.179 | 0.056 | **0.000** |
+| D mean+cov | **permutation** | **0.051** | **0.058** | **0.053** |
+
+Every permutation-calibrated case holds its nominal level across the entire
+grid, 0.035–0.058. Not one asymptotic calibration does.
+
+Each fails differently, and the differences are informative:
+
+- **Case A is conservative** (0.000 at `n = 20`), because `Σ` is not in fact
+  known and the estimate substituted for it is shrunk, damping the quadratic
+  form.
+- **Case B is catastrophically liberal**, for the dimension-accounting reason
+  above.
+- **Case C is the best-behaved asymptotic** of the four, drifting only to 0.123.
+  Its `2d` parameters are `d` independent per-coordinate variances, each
+  estimated from all `n` observations, so the approximation degrades gracefully.
+- **Case D crosses the nominal level**, 0.179 at `n = 20` down to 0.000 at
+  `n = 200`. Its per-sample covariance MLEs have rank at most `n − 1`, so at
+  `d = 32, n = 20` the log-determinants diverge and must be stabilised by
+  shrinkage; the shrunk statistic is no longer the exact likelihood ratio, so
+  Wilks does not apply even asymptotically. Rank deficiency inflates `G` at
+  small `n`; shrinkage bias deflates it at large `n`. Because it crosses,
+  **no single correction factor repairs it.**
+
+### 5.3 Corollary for the z/t workstream
+
+The univariate z-test — case A's known-variance assumption applied per
+coordinate — rejects at **0.093** against a nominal 0.05 at `n = 20`, converging
+to the t-test's 0.050 by `n = 50`. That gap is the cost of the known-variance
+assumption, measured on the same grid.
+
+### 5.4 Consequence for the project
+
+Permutation is the default calibration throughout this package, and the above is
+why. The exact `F` is preferable where it exists, but it exists only for case B.
+For cases C, D and E the permutation null is the only calibration measured to be
+correct, and it is correct for a reason that does not depend on `n`, `d`, or on
+the model being right: exchangeability of the pooled sample under `H₀`.
 
 ---
 
