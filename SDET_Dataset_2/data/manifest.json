@@ -1,0 +1,575 @@
+{
+ "dataset": "SDET_Dataset_2",
+ "seed": 20261017,
+ "alpha": 0.05,
+ "synthetic_grid": {
+  "d": [
+   10,
+   50
+  ],
+  "n": [
+   10,
+   20,
+   50,
+   100
+  ],
+  "R": 100
+ },
+ "mnist": {
+  "deltas": [
+   0.1,
+   0.5,
+   1.0
+  ],
+  "intensities": [
+   "small",
+   "medium",
+   "large"
+  ],
+  "split": "shiftbench.datasets.load_split('mnist', seed=0)"
+ },
+ "numpy": "2.0.0",
+ "scenarios": [
+  {
+   "name": "mean_sparse_d10",
+   "part": "synthetic",
+   "family": "mean_sparse",
+   "file": "synthetic/mean_sparse_d10.npz",
+   "d": 10,
+   "n": [
+    10,
+    20,
+    50,
+    100
+   ],
+   "R": 100,
+   "levels": [
+    0.0,
+    0.1,
+    0.2,
+    0.4,
+    0.8,
+    1.2,
+    1.6
+   ],
+   "level_name": "a (Mahalanobis distance)",
+   "description": "Mean of feature 1 moves by a; every other feature unchanged.",
+   "noise": "gaussian",
+   "sha256": "52b21c5958c11de3ce745f736eb7d2ed7b10e9bab1ef61495ca50afbe6f21306"
+  },
+  {
+   "name": "mean_sparse_d50",
+   "part": "synthetic",
+   "family": "mean_sparse",
+   "file": "synthetic/mean_sparse_d50.npz",
+   "d": 50,
+   "n": [
+    10,
+    20,
+    50,
+    100
+   ],
+   "R": 100,
+   "levels": [
+    0.0,
+    0.1,
+    0.2,
+    0.4,
+    0.8,
+    1.2,
+    1.6
+   ],
+   "level_name": "a (Mahalanobis distance)",
+   "description": "Mean of feature 1 moves by a; every other feature unchanged.",
+   "noise": "gaussian",
+   "sha256": "ce26090a8a00da6626585f36e855eeec2db1989e2d75769a64fc6ea14d10d008"
+  },
+  {
+   "name": "mean_dense_d10",
+   "part": "synthetic",
+   "family": "mean_dense",
+   "file": "synthetic/mean_dense_d10.npz",
+   "d": 10,
+   "n": [
+    10,
+    20,
+    50,
+    100
+   ],
+   "R": 100,
+   "levels": [
+    0.0,
+    0.1,
+    0.2,
+    0.4,
+    0.8,
+    1.2,
+    1.6
+   ],
+   "level_name": "a (Mahalanobis distance)",
+   "description": "Every feature's mean moves by a/sqrt(d); same total distance as mean_sparse.",
+   "noise": "gaussian",
+   "sha256": "c644baf6bb4fad815d0fc092e985b5159f3b4647c8d4944221f4470ca3970fad"
+  },
+  {
+   "name": "mean_dense_d50",
+   "part": "synthetic",
+   "family": "mean_dense",
+   "file": "synthetic/mean_dense_d50.npz",
+   "d": 50,
+   "n": [
+    10,
+    20,
+    50,
+    100
+   ],
+   "R": 100,
+   "levels": [
+    0.0,
+    0.1,
+    0.2,
+    0.4,
+    0.8,
+    1.2,
+    1.6
+   ],
+   "level_name": "a (Mahalanobis distance)",
+   "description": "Every feature's mean moves by a/sqrt(d); same total distance as mean_sparse.",
+   "noise": "gaussian",
+   "sha256": "53ac0fc6e5e74bb1e6cc3610ef1452d423637e11083b5cfce561512eb3ef9b47"
+  },
+  {
+   "name": "variance_d10",
+   "part": "synthetic",
+   "family": "variance",
+   "file": "synthetic/variance_d10.npz",
+   "d": 10,
+   "n": [
+    10,
+    20,
+    50,
+    100
+   ],
+   "R": 100,
+   "levels": [
+    1.0,
+    1.05,
+    1.1,
+    1.2,
+    1.35,
+    1.5,
+    2.0
+   ],
+   "level_name": "s (std multiplier)",
+   "description": "Every feature's standard deviation is multiplied by s; means unchanged.",
+   "noise": "gaussian",
+   "sha256": "387b88512a45a9db4e5540aefcc9b3fd369d0f5cf623b3ad264c9750888e991b"
+  },
+  {
+   "name": "variance_d50",
+   "part": "synthetic",
+   "family": "variance",
+   "file": "synthetic/variance_d50.npz",
+   "d": 50,
+   "n": [
+    10,
+    20,
+    50,
+    100
+   ],
+   "R": 100,
+   "levels": [
+    1.0,
+    1.05,
+    1.1,
+    1.2,
+    1.35,
+    1.5,
+    2.0
+   ],
+   "level_name": "s (std multiplier)",
+   "description": "Every feature's standard deviation is multiplied by s; means unchanged.",
+   "noise": "gaussian",
+   "sha256": "b8b0e894ec8d4e5c442752180c157e345cb6fc85bda632b49794c2222f57de40"
+  },
+  {
+   "name": "correlation_d10",
+   "part": "synthetic",
+   "family": "correlation",
+   "file": "synthetic/correlation_d10.npz",
+   "d": 10,
+   "n": [
+    10,
+    20,
+    50,
+    100
+   ],
+   "R": 100,
+   "levels": [
+    0.0,
+    0.02,
+    0.05,
+    0.1,
+    0.2,
+    0.3,
+    0.5
+   ],
+   "level_name": "r (pairwise correlation)",
+   "description": "Features become equicorrelated at r; every marginal stays exactly N(0, 1).",
+   "noise": "gaussian",
+   "sha256": "d2adb655b0ca2052be9dff07eafa57e17283d2b035c21ceea917125e3586a0d1"
+  },
+  {
+   "name": "correlation_d50",
+   "part": "synthetic",
+   "family": "correlation",
+   "file": "synthetic/correlation_d50.npz",
+   "d": 50,
+   "n": [
+    10,
+    20,
+    50,
+    100
+   ],
+   "R": 100,
+   "levels": [
+    0.0,
+    0.02,
+    0.05,
+    0.1,
+    0.2,
+    0.3,
+    0.5
+   ],
+   "level_name": "r (pairwise correlation)",
+   "description": "Features become equicorrelated at r; every marginal stays exactly N(0, 1).",
+   "noise": "gaussian",
+   "sha256": "59dc463700e899c706a1a2cedbf18c676ac01e7802c65094e1c13b0e540e66da"
+  },
+  {
+   "name": "heavytail_mean_d10",
+   "part": "synthetic",
+   "family": "heavytail_mean",
+   "file": "synthetic/heavytail_mean_d10.npz",
+   "d": 10,
+   "n": [
+    10,
+    20,
+    50,
+    100
+   ],
+   "R": 100,
+   "levels": [
+    0.0,
+    0.1,
+    0.2,
+    0.4,
+    0.8,
+    1.2,
+    1.6
+   ],
+   "level_name": "a (Mahalanobis distance)",
+   "description": "mean_dense, but P and Q use Student-t (3 df) noise scaled to unit variance.",
+   "noise": "student_t3_unit_var",
+   "sha256": "06c196e517af8c3e97e43b13c810fc375743eb7239008f762f2e4462d8d1ef1d"
+  },
+  {
+   "name": "heavytail_mean_d50",
+   "part": "synthetic",
+   "family": "heavytail_mean",
+   "file": "synthetic/heavytail_mean_d50.npz",
+   "d": 50,
+   "n": [
+    10,
+    20,
+    50,
+    100
+   ],
+   "R": 100,
+   "levels": [
+    0.0,
+    0.1,
+    0.2,
+    0.4,
+    0.8,
+    1.2,
+    1.6
+   ],
+   "level_name": "a (Mahalanobis distance)",
+   "description": "mean_dense, but P and Q use Student-t (3 df) noise scaled to unit variance.",
+   "noise": "student_t3_unit_var",
+   "sha256": "1d6e3dd7b4097fedb5fe235ad8296403ee19252132f7bf3234fe03e1bed22b05"
+  },
+  {
+   "name": "source",
+   "part": "mnist",
+   "file": "mnist/source.npz",
+   "description": "x_train (50k) fits the reducers; x_source (10k) is the reference pool P.",
+   "sha256": "0f1559eca23ea7e27349ec2706562bd7d109c59f3cbe5e171d9b75f9bbb38d96"
+  },
+  {
+   "name": "none",
+   "part": "mnist",
+   "file": "mnist/target_none.npz",
+   "family": "null",
+   "intensity": "none",
+   "delta": 0.0,
+   "n_pool": 10000,
+   "dtype": "uint8",
+   "description": "Unshifted target pool: the null.",
+   "sha256": "04a758634d01168d6d1b58c3db91cffe9c305ddd322fa643a85e3cfae35f98af"
+  },
+  {
+   "name": "gn_small_0.1",
+   "part": "mnist",
+   "file": "mnist/target_gn_small_0.1.npz",
+   "family": "gn",
+   "intensity": "small",
+   "delta": 0.1,
+   "n_pool": 10000,
+   "dtype": "float16",
+   "description": "Gaussian noise sigma=1/255 on 10% of images, clipped to [0,1].",
+   "sha256": "34fb7ae641212274d626b9db15e93b4bd7e178bd0703554b3ce2df12042467ea"
+  },
+  {
+   "name": "gn_small_0.5",
+   "part": "mnist",
+   "file": "mnist/target_gn_small_0.5.npz",
+   "family": "gn",
+   "intensity": "small",
+   "delta": 0.5,
+   "n_pool": 10000,
+   "dtype": "float16",
+   "description": "Gaussian noise sigma=1/255 on 50% of images, clipped to [0,1].",
+   "sha256": "6aee9e69635680173dcbe04060cbe5ed4c1d9327417468dad34fab7e1274ff71"
+  },
+  {
+   "name": "gn_small_1.0",
+   "part": "mnist",
+   "file": "mnist/target_gn_small_1.0.npz",
+   "family": "gn",
+   "intensity": "small",
+   "delta": 1.0,
+   "n_pool": 10000,
+   "dtype": "float16",
+   "description": "Gaussian noise sigma=1/255 on 100% of images, clipped to [0,1].",
+   "sha256": "9af978fdeab0f3010e902caaf96321e3756bcc704e09c8f1f0dbf3a5f1fba2da"
+  },
+  {
+   "name": "gn_medium_0.1",
+   "part": "mnist",
+   "file": "mnist/target_gn_medium_0.1.npz",
+   "family": "gn",
+   "intensity": "medium",
+   "delta": 0.1,
+   "n_pool": 10000,
+   "dtype": "float16",
+   "description": "Gaussian noise sigma=10/255 on 10% of images, clipped to [0,1].",
+   "sha256": "7c510f3d9a16dc537724e273cd8062b0f560146d2c87bd478a11d906e7db8599"
+  },
+  {
+   "name": "gn_medium_0.5",
+   "part": "mnist",
+   "file": "mnist/target_gn_medium_0.5.npz",
+   "family": "gn",
+   "intensity": "medium",
+   "delta": 0.5,
+   "n_pool": 10000,
+   "dtype": "float16",
+   "description": "Gaussian noise sigma=10/255 on 50% of images, clipped to [0,1].",
+   "sha256": "227587272f33b3fc8837450983a0ae049eded78885ab75fd93d8a826ef5a5e34"
+  },
+  {
+   "name": "gn_medium_1.0",
+   "part": "mnist",
+   "file": "mnist/target_gn_medium_1.0.npz",
+   "family": "gn",
+   "intensity": "medium",
+   "delta": 1.0,
+   "n_pool": 10000,
+   "dtype": "float16",
+   "description": "Gaussian noise sigma=10/255 on 100% of images, clipped to [0,1].",
+   "sha256": "9fa0bac4385bb6451999471eb5fcd9bcf36cb95c9d4058dac6a0801b33feef70"
+  },
+  {
+   "name": "gn_large_0.1",
+   "part": "mnist",
+   "file": "mnist/target_gn_large_0.1.npz",
+   "family": "gn",
+   "intensity": "large",
+   "delta": 0.1,
+   "n_pool": 10000,
+   "dtype": "float16",
+   "description": "Gaussian noise sigma=100/255 on 10% of images, clipped to [0,1].",
+   "sha256": "9a1055c89f856726e3e6cf2fbdd3f2d91c1a46627000f6400ed41772c75d20bc"
+  },
+  {
+   "name": "gn_large_0.5",
+   "part": "mnist",
+   "file": "mnist/target_gn_large_0.5.npz",
+   "family": "gn",
+   "intensity": "large",
+   "delta": 0.5,
+   "n_pool": 10000,
+   "dtype": "float16",
+   "description": "Gaussian noise sigma=100/255 on 50% of images, clipped to [0,1].",
+   "sha256": "a3bf2715fda59845465c5389832fac8cf625d8adc5fdf5489d20f7b0b85936c6"
+  },
+  {
+   "name": "gn_large_1.0",
+   "part": "mnist",
+   "file": "mnist/target_gn_large_1.0.npz",
+   "family": "gn",
+   "intensity": "large",
+   "delta": 1.0,
+   "n_pool": 10000,
+   "dtype": "float16",
+   "description": "Gaussian noise sigma=100/255 on 100% of images, clipped to [0,1].",
+   "sha256": "99e1a05ae8109d9a4619a19db912decd43543edc6548349f8fb47b9c76d7ec24"
+  },
+  {
+   "name": "img_small_0.1",
+   "part": "mnist",
+   "file": "mnist/target_img_small_0.1.npz",
+   "family": "img",
+   "intensity": "small",
+   "delta": 0.1,
+   "n_pool": 10000,
+   "dtype": "uint8",
+   "description": "Random affine (small: rotation up to 10 deg, shift 0.05, zoom 0.1, shear 0.1) on 10% of images.",
+   "sha256": "492220c30495610a0d85aefa80bfb2c1a583fd090aa0dc76b319915f72106eb6"
+  },
+  {
+   "name": "img_small_0.5",
+   "part": "mnist",
+   "file": "mnist/target_img_small_0.5.npz",
+   "family": "img",
+   "intensity": "small",
+   "delta": 0.5,
+   "n_pool": 10000,
+   "dtype": "uint8",
+   "description": "Random affine (small: rotation up to 10 deg, shift 0.05, zoom 0.1, shear 0.1) on 50% of images.",
+   "sha256": "277939f3cf7b288718bd22525282ca6ce7d4b952633dbab28c0a27cba0b456a3"
+  },
+  {
+   "name": "img_small_1.0",
+   "part": "mnist",
+   "file": "mnist/target_img_small_1.0.npz",
+   "family": "img",
+   "intensity": "small",
+   "delta": 1.0,
+   "n_pool": 10000,
+   "dtype": "uint8",
+   "description": "Random affine (small: rotation up to 10 deg, shift 0.05, zoom 0.1, shear 0.1) on 100% of images.",
+   "sha256": "49ad8872b0c30e0a2a67e1c51f70897d1dd495e32a71dbbf0dfdcffc010b1d9c"
+  },
+  {
+   "name": "img_medium_0.1",
+   "part": "mnist",
+   "file": "mnist/target_img_medium_0.1.npz",
+   "family": "img",
+   "intensity": "medium",
+   "delta": 0.1,
+   "n_pool": 10000,
+   "dtype": "uint8",
+   "description": "Random affine (medium: rotation up to 40 deg, shift 0.2, zoom 0.2, shear 0.2) on 10% of images.",
+   "sha256": "d77aa262bc6e6273aa94d5de114aa3a3019890876a3a2fbbda6fa3f3371fe972"
+  },
+  {
+   "name": "img_medium_0.5",
+   "part": "mnist",
+   "file": "mnist/target_img_medium_0.5.npz",
+   "family": "img",
+   "intensity": "medium",
+   "delta": 0.5,
+   "n_pool": 10000,
+   "dtype": "uint8",
+   "description": "Random affine (medium: rotation up to 40 deg, shift 0.2, zoom 0.2, shear 0.2) on 50% of images.",
+   "sha256": "bd9e17bbac60a805692edeefe1518075389a5934539abdffc80aac15a6962eb1"
+  },
+  {
+   "name": "img_medium_1.0",
+   "part": "mnist",
+   "file": "mnist/target_img_medium_1.0.npz",
+   "family": "img",
+   "intensity": "medium",
+   "delta": 1.0,
+   "n_pool": 10000,
+   "dtype": "uint8",
+   "description": "Random affine (medium: rotation up to 40 deg, shift 0.2, zoom 0.2, shear 0.2) on 100% of images.",
+   "sha256": "305fc56fbc0cfe3d6529867a004f4d57247daa9215bdeec2646a5d95707742d4"
+  },
+  {
+   "name": "img_large_0.1",
+   "part": "mnist",
+   "file": "mnist/target_img_large_0.1.npz",
+   "family": "img",
+   "intensity": "large",
+   "delta": 0.1,
+   "n_pool": 10000,
+   "dtype": "uint8",
+   "description": "Random affine (large: rotation up to 90 deg, shift 0.4, zoom 0.4, shear 0.3) on 10% of images.",
+   "sha256": "13c80ca873f423e51dde4ef4bf4d024a573a5a012a8e6660c13aee45831ce851"
+  },
+  {
+   "name": "img_large_0.5",
+   "part": "mnist",
+   "file": "mnist/target_img_large_0.5.npz",
+   "family": "img",
+   "intensity": "large",
+   "delta": 0.5,
+   "n_pool": 10000,
+   "dtype": "uint8",
+   "description": "Random affine (large: rotation up to 90 deg, shift 0.4, zoom 0.4, shear 0.3) on 50% of images.",
+   "sha256": "d1cc3c29fb73c42e8971f409dd5e3cfced09edc127381ea54316f548acde8b08"
+  },
+  {
+   "name": "img_large_1.0",
+   "part": "mnist",
+   "file": "mnist/target_img_large_1.0.npz",
+   "family": "img",
+   "intensity": "large",
+   "delta": 1.0,
+   "n_pool": 10000,
+   "dtype": "uint8",
+   "description": "Random affine (large: rotation up to 90 deg, shift 0.4, zoom 0.4, shear 0.3) on 100% of images.",
+   "sha256": "0f7335f522faf1759549d4f948bc298039f82fbb711cf4fa4c9fec494dac674e"
+  },
+  {
+   "name": "ko_0.1",
+   "part": "mnist",
+   "file": "mnist/target_ko_0.1.npz",
+   "family": "ko",
+   "intensity": "delta=0.1",
+   "delta": 0.1,
+   "n_pool": 9902,
+   "dtype": "uint8",
+   "description": "Delete 10% of the digit-0 images (label shift).",
+   "sha256": "b72bc74146fa20374c6d827802723c4556f988ce172ed6ef45b3ab3d71344ac4"
+  },
+  {
+   "name": "ko_0.5",
+   "part": "mnist",
+   "file": "mnist/target_ko_0.5.npz",
+   "family": "ko",
+   "intensity": "delta=0.5",
+   "delta": 0.5,
+   "n_pool": 9510,
+   "dtype": "uint8",
+   "description": "Delete 50% of the digit-0 images (label shift).",
+   "sha256": "b01f0dbb471ba78cd3697cb0e015c220c99a6afbde874dbda401135be2deeb23"
+  },
+  {
+   "name": "ko_1.0",
+   "part": "mnist",
+   "file": "mnist/target_ko_1.0.npz",
+   "family": "ko",
+   "intensity": "delta=1.0",
+   "delta": 1.0,
+   "n_pool": 9023,
+   "dtype": "uint8",
+   "description": "Delete 100% of the digit-0 images (label shift).",
+   "sha256": "822f1c80612d0fd3e39bca4f7067539b9909fa6781b6ccc5d98ab3f315d80e23"
+  }
+ ]
+}
