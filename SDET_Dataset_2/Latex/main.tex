@@ -288,6 +288,148 @@ D=\max_{x}\left|\hat F_X(x)-\hat F_Y(x)\right|
 % ====================================================================
 
 
+% ====================================================================
+% GLRT: derivation of the likelihood, the MLEs and the test statistic
+% ====================================================================
+
+\begin{frame}[t]
+\frametitle{GLRT: Introduction}
+\begin{itemize}
+    \item The generalised likelihood ratio test (GLRT) asks: how much better do the data fit if each sample gets its \textbf{own} Gaussian, instead of one shared Gaussian?
+    \vspace{0.4em}
+    \item \textbf{$H_0$:} $(\mu_X,\Sigma_X)=(\mu_Y,\Sigma_Y)$ \quad (one Gaussian for both samples)
+    \item \textbf{$H_1$:} $(\mu_X,\Sigma_X)\ne(\mu_Y,\Sigma_Y)$ \quad (a separate Gaussian for each)
+    \vspace{0.4em}
+    \item The likelihood ratio compares the best fit under each hypothesis:
+\[
+\Lambda=\frac{\max_{H_0} L}{\max_{H_1} L}\le 1,
+\qquad
+\boxed{G=-2\log\Lambda}
+\]
+    \item $\Lambda$ near 1 (G near 0): one Gaussian fits as well as two, so no evidence of a shift. Large $G$: reject $H_0$.
+    \item Unlike the t-test, it sees mean \textbf{and} covariance changes.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[t]
+\frametitle{Step 1: Write the Gaussian likelihood}
+\small
+For one observation $x\in\mathbb{R}^d$:
+\[
+p(x\mid\mu,\Sigma)=\frac{1}{(2\pi)^{d/2}|\Sigma|^{1/2}}
+\exp\!\left[-\tfrac12(x-\mu)^\top\Sigma^{-1}(x-\mu)\right]
+\]
+\begin{itemize}
+    \item $(2\pi)^{-d/2}$ is a dimensional normalisation factor.
+    \item $|\Sigma|^{-1/2}$ accounts for the volume and spread of the Gaussian.
+    \item The exponential penalises observations far from the mean in covariance-adjusted distance.
+\end{itemize}
+For independent observations, likelihoods multiply, so log-likelihoods add. For $N$ observations $z_1,\dots,z_N$:
+\[
+\ell(\mu,\Sigma)=-\frac{Nd}{2}\log(2\pi)-\frac N2\log|\Sigma|
+-\frac12\sum_{i=1}^{N}(z_i-\mu)^\top\Sigma^{-1}(z_i-\mu)
+\]
+This is our starting point.
+\end{frame}
+
+\begin{frame}[t]
+\frametitle{Step 2: Maximum-likelihood estimates}
+\small
+\[
+\boxed{\hat\mu=\bar z=\frac1N\sum_{i=1}^N z_i}
+\qquad
+\boxed{\hat\Sigma=\frac1N\sum_{i=1}^N(z_i-\bar z)(z_i-\bar z)^\top}
+\]
+\begin{itemize}
+    \item The denominator is $N$, not $N-1$: this is the Gaussian MLE, not the unbiased sample covariance.
+\end{itemize}
+Substituting the fitted parameters, the quadratic terms collapse (using $a^\top Ba=\operatorname{tr}(Baa^\top)$):
+\[
+\sum_{i=1}^N(z_i-\bar z)^\top\hat\Sigma^{-1}(z_i-\bar z)
+=\operatorname{tr}\!\Big[\hat\Sigma^{-1}\textstyle\sum_i(z_i-\bar z)(z_i-\bar z)^\top\Big]
+=\operatorname{tr}\big[\hat\Sigma^{-1}N\hat\Sigma\big]=Nd
+\]
+So the maximised log-likelihood is
+\[
+\boxed{\hat\ell=-\frac N2\Big[d\log(2\pi)+d+\log|\hat\Sigma|\Big]}
+\]
+After fitting, the likelihood depends on the data \textbf{only through} $\log|\hat\Sigma|$.
+\end{frame}
+
+\begin{frame}[t]
+\frametitle{Steps 3--4: Likelihood under $H_0$ and $H_1$}
+\small
+\textbf{Under $H_0$}, pool all $N=n+m$ observations and fit one Gaussian:
+\[
+\bar z=\frac1N\sum_{i=1}^N z_i,\qquad
+\hat\Sigma_0=\frac1N\sum_{i=1}^N(z_i-\bar z)(z_i-\bar z)^\top
+\]
+\[
+\hat\ell_0=-\frac N2\Big[d\log(2\pi)+d+\log|\hat\Sigma_0|\Big]
+\]
+\begin{itemize}
+    \item $\hat\Sigma_0$ is taken about the grand mean, so a mean difference between $X$ and $Y$ shows up as \textbf{extra spread}.
+\end{itemize}
+\textbf{Under $H_1$}, fit $X$ and $Y$ separately; their log-likelihoods add:
+\[
+\hat\ell_1=-\frac n2\Big[d\log(2\pi)+d+\log|\hat\Sigma_X|\Big]
+-\frac m2\Big[d\log(2\pi)+d+\log|\hat\Sigma_Y|\Big]
+\]
+\end{frame}
+
+\begin{frame}[t]
+\frametitle{Step 5: The test statistic}
+Since $\log\Lambda=\hat\ell_0-\hat\ell_1$, we obtain $G=2(\hat\ell_1-\hat\ell_0)$.
+
+\vspace{0.3em}
+Substituting the fitted log-likelihoods, all constant terms cancel ($N=n+m$), leaving
+\[
+\boxed{G=N\log|\hat\Sigma_0|-n\log|\hat\Sigma_X|-m\log|\hat\Sigma_Y|}
+\]
+\begin{itemize}
+    \item This is the Gaussian likelihood-ratio statistic for testing equality of two multivariate Gaussians.
+    \vspace{0.3em}
+    \item Intuition: if $X$ and $Y$ come from the same Gaussian, pooling costs nothing and $|\hat\Sigma_0|$ is close to the separate determinants. A shift in mean or covariance inflates $|\hat\Sigma_0|$, so $G$ grows.
+    \vspace{0.3em}
+    \item \textbf{Diagonal case} (features assumed independent, as in our experiment): $|\Sigma|=\prod_j\sigma_j^2$, so
+\[
+G=\sum_{j=1}^{d}\Big[N\log\hat\sigma^2_{0j}-n\log\hat\sigma^2_{Xj}-m\log\hat\sigma^2_{Yj}\Big]
+\]
+\end{itemize}
+\end{frame}
+
+\begin{frame}[t]
+\frametitle{Reference distribution and dimensionality}
+\small
+\textbf{Wilks' theorem:} under $H_0$ and for large $N$, $G\approx\chi^2_r$, where $r$ is the number of extra free parameters $H_1$ has over $H_0$.
+\vspace{0.3em}
+
+\centering
+\begin{tabular}{l|c|c|c}
+Model & params per Gaussian & $r$ & $d=10$ \\ \hline
+Full covariance & $d+\frac{d(d+1)}{2}$ & $d+\frac{d(d+1)}{2}$ & 65 \\
+Diagonal & $d+d$ & $2d$ & \textbf{20} \\
+\end{tabular}
+
+\raggedright
+\vspace{0.4em}
+\begin{itemize}
+    \item The diagonal model is why our test uses $\chi^2_{20}$.
+    \item \textbf{Dimensionality cost:} the full model estimates $\sim d^2/2$ covariance entries per sample.
+    \begin{itemize}
+        \item $\hat\Sigma_X$ has rank $\le n-1$, so $|\hat\Sigma_X|=0$ and $G$ is undefined unless $n>d$.
+        \item Wilks needs $N\gg r$. With $r=65$ and $n=20$ the $\chi^2$ approximation is poor.
+    \end{itemize}
+    \item Wilks also assumes the Gaussian model is \textbf{correct}. Heavy tails break it, which is why the heavy-tailed false alarms reach 93\%.
+    \item Fix: keep $G$ but get its null distribution by \textbf{permutation} (shuffle $X$/$Y$ labels, recompute $G$).
+\end{itemize}
+\end{frame}
+
+% ====================================================================
+% END OF GLRT SECTION
+% ====================================================================
+
+
 \begin{frame}[t]
 \frametitle{Results: False Alarms (no shift)}
 \centering
@@ -341,6 +483,85 @@ GLRT   & \textbf{0.05} & 0.97 & \textbf{0.96} & 0.93 \\
     \item Testing each feature separately without a multiple-testing correction inflates the false alarm rate.
     \item The GLRT requires a suitable distributional model for its reference distribution to be valid.
 \end{itemize}
+\end{frame}
+
+% ====================================================================
+% COMPARISON: five tests, Bonferroni and permutation nulls, plus MNIST
+% Figures from ponnam/scripts/10_simple_figures.py
+% ====================================================================
+
+\begin{frame}[t]
+\frametitle{Comparison: MNIST shifts (Failing Loudly)}
+\centering
+\includegraphics[width=\textwidth]{f2_mnist_shifts.png}
+\small
+\begin{itemize}
+    \item \textbf{Noise}: Gaussian pixel noise, $\sigma = 1, 10, 100$ out of 255.
+    \item \textbf{Affine}: random rotation, shift, shear, zoom (plus flips).
+    \item \textbf{Knock-out}: remove some 0s; only the mix of digits changes.
+    \item Each hits 10\%, 50\% or 100\% of images. Tests see 784 pixels reduced to 32 (PCA) or 9 (BBSD).
+\end{itemize}
+\end{frame}
+
+\begin{frame}[t]
+\frametitle{Comparison: False alarms with corrections}
+\centering
+\includegraphics[width=\textwidth]{f3_false_alarms.png}
+\small
+\begin{itemize}
+    \item With Bonferroni ($p_{\min}\times d$), t and KS hold 5\% (vs 30--50\% without it).
+    \item Hotelling (exact F) and permutation GLRT-D hold 5\%, even on heavy tails.
+    \item Wilks' $\chi^2$ fails: 33\% (Hotelling) and 20\% (GLRT-D) at $n=10$; 68\% on heavy tails at $n=100$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[t]
+\frametitle{Comparison: Mean shifts ($n = 20$)}
+\centering
+\includegraphics[height=0.6\textheight]{f4a_power_mean.png}
+\small
+\begin{itemize}
+    \item One feature moved: KS + Bonferroni keeps up. Spread over all features: it falls behind.
+    \item Hotelling pays for estimating $\Sigma$; at $d=50$, $n=20$ it is undefined ($2n-2<d$).
+\end{itemize}
+\end{frame}
+
+\begin{frame}[t]
+\frametitle{Comparison: Variance and correlation ($n = 20$)}
+\centering
+\includegraphics[height=0.62\textheight]{f4b_power_shape.png}
+\small
+\begin{itemize}
+    \item Mean tests (Hotelling) are blind: no mean moves.
+    \item Correlation keeps every feature $\mathcal{N}(0,1)$, so per-feature KS cannot see it. Only GLRT-D, which models $\Sigma$, detects it.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[t]
+\frametitle{Comparison: Power against sample size ($d = 10$)}
+\centering
+\includegraphics[width=\textwidth]{f5_power_vs_n.png}
+\small
+\begin{itemize}
+    \item More samples help only the tests that can see the change: on correlation, KS and Hotelling stay at 5\% even at $n = 100$.
+    \item At these moderate shifts, only GLRT-D on variance passes 50\% power by $n=100$ (0.79).
+    \item Heavy tails stall GLRT-D (about 8\%) while MMD climbs to 0.53.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[t]
+\frametitle{Comparison: Which test, when}
+\small
+\centering
+\begin{tabular}{p{0.32\textwidth}|p{0.26\textwidth}|p{0.32\textwidth}}
+\textbf{If you expect} & \textbf{Use} & \textbf{Because} \\ \hline
+Mean shift in a few features & t or KS + Bonferroni & All power on the moved feature \\
+Mean shift over many features & Hotelling ($2n\gg d$) or MMD & Pools weak evidence \\
+Variance, correlation, label shift & GLRT-D (GLRT-C for variance) & Models the covariance \\
+Nothing specific / heavy tails & MMD & No model to break \\
+Any GLRT & Permutation p-value & Wilks gave up to 94\% false alarms \\
+Under $\sim$100 samples & Not C2ST & Spends half the data on training \\
+\end{tabular}
 \end{frame}
 
 \end{document}
